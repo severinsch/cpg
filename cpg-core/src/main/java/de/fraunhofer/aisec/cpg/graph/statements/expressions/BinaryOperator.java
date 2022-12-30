@@ -161,6 +161,15 @@ public class BinaryOperator extends Expression implements TypeListener, Assignme
       // String + any other type results in a String
       getPossibleSubTypes().clear();
       setType(TypeParser.createFrom("java.lang.String", getLanguage()), root);
+    } else if (this.lhs != null
+        && "int".equals(this.lhs.getType().toString())
+        && this.rhs != null
+        && "int".equals(this.rhs.getType().toString())) {
+      // int + int results in an int
+      // fixes issue with BinaryOperators like n/5 having unknown type, even if the type of n is
+      // known
+      getPossibleSubTypes().clear();
+      setType(TypeParser.createFrom("int", getLanguage()), root);
     }
     if (!previous.equals(this.type)) {
       this.type.setTypeOrigin(Type.Origin.DATAFLOW);

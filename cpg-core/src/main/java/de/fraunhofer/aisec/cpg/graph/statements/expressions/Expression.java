@@ -194,6 +194,12 @@ public abstract class Expression extends Statement implements HasType {
     if (root.contains(this)
         || (possibleSubTypes.stream().allMatch(it -> TypeManager.isPrimitive(it, getLanguage()))
             && !this.possibleSubTypes.isEmpty())) {
+      if (this.possibleSubTypes.size() == 1
+          && this.type.toString().equals(Type.UNKNOWN_TYPE_STRING)) {
+        // part of quickfix for wrong types of BinaryOperators of ints
+        // needs to be determined whether this is actually correct
+        this.type = this.possibleSubTypes.get(0);
+      }
       return;
     }
 
