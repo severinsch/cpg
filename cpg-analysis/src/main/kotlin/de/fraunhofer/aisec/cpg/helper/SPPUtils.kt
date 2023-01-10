@@ -58,7 +58,7 @@ fun Node?.isString(): Boolean {
     return false
 }
 
-fun getRegexForType(type: Type): Regex {
+fun getRegexForNodeType(type: Type): Regex {
     return when (type.typeName) {
         "java.lang.String" -> Regex(".*")
         "java.lang.Integer",
@@ -73,10 +73,25 @@ fun getRegexForType(type: Type): Regex {
     }
 }
 
+fun getCharsetForNodeType(type: Type): CharSet {
+    return when (type.typeName) {
+        "java.lang.String" -> CharSet.sigma()
+        "java.lang.Integer",
+        "java.lang.Long",
+        "java.lang.Short",
+        "java.lang.Byte",
+        "byte",
+        "short",
+        "int",
+        "long" -> SetCharSet('-', '0', '1', '2', '3', '4', '5', '6', '7', '8', '9')
+        else -> CharSet.sigma()
+    }
+}
+
 fun getNumberProduction(node: Expression): Production {
     val value = ValueEvaluator().evaluate(node)
     if (value is Number) {
-        return RegexProduction(Regex.fromLiteral(value.toString()))
+        return TerminalProduction(Terminal(value))
     }
-    return RegexProduction(getRegexForType(node.type))
+    return TerminalProduction(Terminal(node.type))
 }

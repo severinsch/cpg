@@ -26,18 +26,13 @@
 package de.fraunhofer.aisec.cpg.helper
 
 import de.fraunhofer.aisec.cpg.graph.Node
+import de.fraunhofer.aisec.cpg.graph.types.Type
 
 abstract class Production
 
 // A -> "abc"
-class RegexProduction : Production {
-    var regex: Regex
-    constructor(_regex: Regex) {
-        regex = _regex
-    }
-    constructor(string_literal: String) {
-        regex = Regex.fromLiteral(string_literal)
-    }
+class TerminalProduction(val terminal: Terminal) : Production() {
+    // constructor(string_literal: String) : this(Regex.fromLiteral(string_literal))
 }
 
 // X -> Y
@@ -67,6 +62,24 @@ class Nonterminal(var id: Long, val productions: MutableSet<Production> = mutabl
     }
 }
 
+class Terminal(val regex: Regex, val charset: CharSet) {
+
+    companion object {
+        fun anything(): Terminal {
+            return Terminal(Regex(".*"), CharSet.sigma())
+        }
+    }
+
+    constructor(type: Type) : this(getRegexForNodeType(type), getCharsetForNodeType(type))
+
+    constructor(
+        value: Any
+    ) : this(
+        Regex.fromLiteral(value.toString()),
+        SetCharSet(value.toString().toCollection(mutableSetOf()))
+    )
+}
+
 class ContextFreeGrammar(var nonterminals: HashMap<Long, Nonterminal> = hashMapOf()) {
 
     fun clear() {
@@ -92,7 +105,7 @@ class ContextFreeGrammar(var nonterminals: HashMap<Long, Nonterminal> = hashMapO
     fun getSuccessorsFor(nt: Nonterminal): Iterable<Nonterminal> {
         return nt.productions.flatMap { p ->
             when (p) {
-                is RegexProduction -> emptyList()
+                is TerminalProduction -> emptyList()
                 is UnaryOpProduction -> listOf(this.getNonterminal(p.y_id)!!)
                 is BinaryOpProduction ->
                     listOf(this.getNonterminal(p.y_id)!!, this.getNonterminal(p.z_id)!!)
@@ -109,7 +122,7 @@ class ContextFreeGrammar(var nonterminals: HashMap<Long, Nonterminal> = hashMapO
         for (nt in nonterminals.values) {
             for (prod in nt.productions) {
                 when (prod) {
-                    is RegexProduction -> {}
+                    is TerminalProduction -> {}
                     is UnitProduction -> {
                         // for nt -> B adds nt to predecessors[B]
                         predecessors.compute(nonterminals[prod.y_id]!!) { _, preds ->
@@ -150,7 +163,7 @@ class ContextFreeGrammar(var nonterminals: HashMap<Long, Nonterminal> = hashMapO
             nt.productions.joinToString(separator = "\n") { p ->
                 "${nt.id} -> " +
                     when (p) {
-                        is RegexProduction -> "\"${p.regex}\""
+                        is TerminalProduction -> "\"${p.terminal.regex}\""
                         is UnitProduction -> p.y_id
                         is UnaryOpProduction -> "${p.op}(${p.y_id})"
                         is BinaryOpProduction -> "${p.op}(${p.y_id}, ${p.z_id})"

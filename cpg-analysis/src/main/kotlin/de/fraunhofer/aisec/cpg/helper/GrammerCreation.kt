@@ -118,7 +118,7 @@ private fun handleConstructExpression(node: ConstructExpression, cfg: ContextFre
     val nt = Nonterminal(node.id!!)
     // Constructor call of Java Number Wrapper
     if (node.isNumber()) {
-        // should be RegexProduction with literal of Constructor Argument most of the time
+        // should be TerminalProduction with literal of Constructor Argument most of the time
         val prod = getNumberProduction(node.arguments[0])
         nt.addProduction(prod)
         cfg.addNonterminal(node, nt)
@@ -128,7 +128,7 @@ private fun handleConstructExpression(node: ConstructExpression, cfg: ContextFre
         val args = node.arguments
         if (args.isEmpty()) {
             // String() == ""
-            nt.addProduction(RegexProduction(""))
+            nt.addProduction(TerminalProduction(Terminal("")))
             cfg.addNonterminal(node, nt)
             return
         }
@@ -141,7 +141,7 @@ private fun handleConstructExpression(node: ConstructExpression, cfg: ContextFre
         // byte[]/char[] etc, complex with charsets, not handled currently
     }
     // here it would be nice to have some information about the toString() method of the object
-    nt.addProduction(RegexProduction(".*"))
+    nt.addProduction(TerminalProduction(Terminal.anything()))
     cfg.addNonterminal(node, nt)
     return
 }
@@ -152,8 +152,7 @@ private fun handleParamVariableDeclaration(
 ) {
     val nt = Nonterminal(node.id!!)
     if (node.prevDFG.isEmpty() || node.isNumber()) {
-        val reg = getRegexForType(node.type)
-        nt.addProduction(RegexProduction(reg))
+        nt.addProduction(TerminalProduction(Terminal(node.type)))
     } else {
         for (data_source in node.prevDFG) {
             nt.addProduction(UnitProduction(data_source.id!!))
@@ -164,7 +163,7 @@ private fun handleParamVariableDeclaration(
 
 private fun handleLiteral(node: Literal<*>, cfg: ContextFreeGrammar) {
     val nt = Nonterminal(node.id!!)
-    nt.addProduction(RegexProduction(node.value.toString()))
+    nt.addProduction(TerminalProduction(Terminal(node.value)))
     cfg.addNonterminal(node, nt)
 }
 
@@ -173,8 +172,7 @@ private fun handleVariableDeclaration(node: VariableDeclaration, cfg: ContextFre
 
     val initializer = node.initializer
     if (initializer == null || initializer is UninitializedValue) {
-        val reg = getRegexForType(node.type)
-        nt.addProduction(RegexProduction(reg))
+        nt.addProduction(TerminalProduction(Terminal(node.type)))
     } else {
         nt.addProduction(UnitProduction(initializer.id!!))
     }
@@ -198,8 +196,7 @@ private fun handleDeclaredReferenceExpression(
     val nt = Nonterminal(node.id!!)
     // TODO extend isNumber check (function calls that return int etc) and pull out
     if (node.prevDFG.isEmpty()) {
-        val reg = getRegexForType(node.type)
-        nt.addProduction(RegexProduction(reg))
+        nt.addProduction(TerminalProduction(Terminal(node.type)))
     } else if (node.isNumber()) {
         val prod = getNumberProduction(node)
         nt.addProduction(prod)

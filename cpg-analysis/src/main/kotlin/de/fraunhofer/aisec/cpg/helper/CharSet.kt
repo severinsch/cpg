@@ -111,9 +111,7 @@ class SigmaCharSet(val removed: MutableSet<Char> = mutableSetOf()) : CharSet {
 // are CharSet that represents a Set of form C = {c1, c2, c3, ...}
 class SetCharSet(val chars: MutableSet<Char> = mutableSetOf()) : CharSet {
 
-    constructor(reg: Regex) : this() {
-        TODO()
-    }
+    constructor(vararg cs: Char) : this(cs.toMutableSet())
 
     override fun contains(c: Char): Boolean {
         return chars.contains(c)

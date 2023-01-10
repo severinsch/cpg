@@ -33,7 +33,7 @@ import java.lang.IllegalStateException
 
 fun createOperationProduction(node: CallExpression): Production {
     if (node.base == null) {
-        return RegexProduction(Regex(".*"))
+        return TerminalProduction(Terminal.anything())
     }
     val name = node.name.lowercase()
     if (name in setOf("replace", "trim")) {
@@ -70,7 +70,7 @@ fun createOperationProduction(node: CallExpression): Production {
     if (name in setOf("repeat")) {
         return UnaryOpProduction(Repeat(node, node.arguments.first()), node.base?.id!!)
     }
-    return RegexProduction(Regex(".*"))
+    return TerminalProduction(Terminal.anything())
 }
 
 fun createOperationProduction(node: BinaryOperator): Production {
@@ -87,7 +87,7 @@ fun createOperationProduction(node: BinaryOperator): Production {
             return UnaryOpProduction(Repeat(node, amount), arg?.id!!)
         }
     }
-    return RegexProduction(Regex(".*"))
+    return TerminalProduction(Terminal.anything())
 }
 
 abstract class Operation {

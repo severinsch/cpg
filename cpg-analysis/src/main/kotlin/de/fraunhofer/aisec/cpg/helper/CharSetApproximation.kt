@@ -75,7 +75,7 @@ class CharSetApproximation(val grammar: ContextFreeGrammar) {
 
     fun getCharsetForProduction(prod: Production): CharSet {
         return when (prod) {
-            is RegexProduction -> SetCharSet(prod.regex)
+            is TerminalProduction -> prod.terminal.charset
             is UnitProduction -> {
                 val nonterminal = grammar.getNonterminal(prod.y_id)!!
                 charsets.getOrDefault(nonterminal, CharSet.empty())
