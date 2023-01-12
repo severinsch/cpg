@@ -45,12 +45,13 @@ fun makeStrategyConditional(
     }
 }
 
-val DFG_BACKWARD_COND = makeStrategyConditional(Strategy::DFG_BACKWARD) { n: Node -> !n.isNumber() }
+val DFG_BACKWARD_NO_NUMBERS =
+    makeStrategyConditional(Strategy::DFG_BACKWARD) { n: Node -> !n.isNumber() }
 
 fun createGrammar(node: Node): ContextFreeGrammar {
     val cfg = ContextFreeGrammar()
     node.accept(
-        DFG_BACKWARD_COND,
+        DFG_BACKWARD_NO_NUMBERS,
         object : IVisitor<Node>() {
             override fun visit(n: Node) {
                 handle(n, cfg)

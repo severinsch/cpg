@@ -27,13 +27,13 @@ package de.fraunhofer.aisec.cpg.helper
 
 import java.util.*
 
-class CharSetApproximation(val grammar: ContextFreeGrammar) {
-    val charsets: MutableMap<Nonterminal, CharSet> = mutableMapOf()
-    val predecessors: MutableMap<Nonterminal, MutableSet<Nonterminal>>
-    var scc: SCC
+class CharSetApproximation(private val grammar: ContextFreeGrammar) {
+    private val charsets: MutableMap<Nonterminal, CharSet> = mutableMapOf()
+    private val predecessors: MutableMap<Nonterminal, MutableSet<Nonterminal>> =
+        grammar.getPredecessors()
+    private var scc: SCC
 
     init {
-        predecessors = grammar.getPredecessors()
         scc = SCC(grammar)
         // here we use the property that tarjans algorithm for SCC provides topological ordering
         for (comp in scc.components) {
@@ -45,7 +45,7 @@ class CharSetApproximation(val grammar: ContextFreeGrammar) {
     private fun breakCycles() {
         var done = false
 
-        while(!done) {
+        while (!done) {
             done = true
             for (comp in scc.components) {
                 var cycles = 0
@@ -56,7 +56,10 @@ class CharSetApproximation(val grammar: ContextFreeGrammar) {
                 comp.nonterminal.forEach { nt ->
                     nt.productions.forEach { prod ->
                         if (comp.detectOperationCycle(prod)) {
-                            if ((prod as OperationProduction).op.priority > (maxOp?.priority ?: Int.MIN_VALUE)) {
+                            if (
+                                (prod as OperationProduction).op.priority >
+                                    (maxOp?.priority ?: Int.MIN_VALUE)
+                            ) {
                                 maxNT = nt
                                 maxProd = prod
                                 maxOp = prod.op
@@ -82,19 +85,20 @@ class CharSetApproximation(val grammar: ContextFreeGrammar) {
 
     private fun replaceOperationProduction(prod: OperationProduction, nt: Nonterminal) {
 
-        val charset: CharSet = when (prod) {
-            is UnaryOpProduction -> {
-                val oldCharset = charsets[grammar.getNonterminal(prod.y_id)]
-                // TODO improve this
-                prod.op.charsetTransformation(oldCharset!!)
+        val charset: CharSet =
+            when (prod) {
+                is UnaryOpProduction -> {
+                    val oldCharset = charsets[grammar.getNonterminal(prod.y_id)]
+                    // TODO improve this
+                    prod.op.charsetTransformation(oldCharset!!)
+                }
+                is BinaryOpProduction -> {
+                    val oldCharset1 = charsets[grammar.getNonterminal(prod.y_id)]
+                    val oldCharset2 = charsets[grammar.getNonterminal(prod.z_id)]
+                    // TODO improve this
+                    prod.op.charsetTransformation(oldCharset1!!, oldCharset2!!)
+                }
             }
-            is BinaryOpProduction -> {
-                val oldCharset1 = charsets[grammar.getNonterminal(prod.y_id)]
-                val oldCharset2 = charsets[grammar.getNonterminal(prod.z_id)]
-                // TODO improve this
-                prod.op.charsetTransformation(oldCharset1!!, oldCharset2!!)
-            }
-        }
         nt.productions.remove(prod)
         val terminal = Terminal(Regex(charset.toRegexPattern()), charset)
         nt.productions.add(TerminalProduction(terminal))
@@ -103,7 +107,8 @@ class CharSetApproximation(val grammar: ContextFreeGrammar) {
     private fun Component.detectOperationCycle(prod: Production): Boolean {
         return when (prod) {
             is UnaryOpProduction -> this.nonterminal.contains(grammar.getNonterminal(prod.y_id))
-            is BinaryOpProduction -> this.nonterminal.contains(grammar.getNonterminal(prod.y_id)) ||
+            is BinaryOpProduction ->
+                this.nonterminal.contains(grammar.getNonterminal(prod.y_id)) ||
                     this.nonterminal.contains(grammar.getNonterminal(prod.z_id))
             else -> false
         }
@@ -131,7 +136,10 @@ class CharSetApproximation(val grammar: ContextFreeGrammar) {
     }
 
     /** Updates charset according to productions. Returns true if any changes. */
-    private fun updateCharset(nt: Nonterminal, charsets: MutableMap<Nonterminal, CharSet>): Boolean {
+    private fun updateCharset(
+        nt: Nonterminal,
+        charsets: MutableMap<Nonterminal, CharSet>
+    ): Boolean {
         val currentCharSet = charsets.getOrDefault(nt, CharSet.empty())
 
         val newSets = nt.productions.map { getCharsetForProduction(it) }

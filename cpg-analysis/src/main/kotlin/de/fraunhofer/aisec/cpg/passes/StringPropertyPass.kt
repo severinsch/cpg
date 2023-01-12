@@ -76,7 +76,7 @@ class StringPropertyPass : Pass() {
         }
     }
 
-    fun collectHotspots(node: Node?) {
+    private fun collectHotspots(node: Node?) {
         when (node) {
             is ReturnStatement ->
                 if (

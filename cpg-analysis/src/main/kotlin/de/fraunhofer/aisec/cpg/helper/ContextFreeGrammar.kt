@@ -28,17 +28,15 @@ package de.fraunhofer.aisec.cpg.helper
 import de.fraunhofer.aisec.cpg.graph.Node
 import de.fraunhofer.aisec.cpg.graph.types.Type
 
-
 sealed interface Production
 
-sealed interface OperationProduction: Production {
+sealed interface OperationProduction : Production {
     val op: Operation
 }
 
-sealed interface BinaryProduction: Production {
+sealed interface BinaryProduction : Production {
     // TODO: getter for second target NT
 }
-
 
 // A -> "abc"
 class TerminalProduction(val terminal: Terminal) : Production {

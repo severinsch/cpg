@@ -109,7 +109,8 @@ class SigmaCharSet(val removed: MutableSet<Char> = mutableSetOf()) : CharSet {
 
     override fun hashCode(): Int {
         // invert to ensure SigmaCharSet Σ \ {'a'} has a different hash from SetCharSet {'a'}
-        // like equals this doesn't account for SigmaCharSet and SetCharSet that are equal, since this won't occur
+        // like equals this doesn't account for SigmaCharSet and SetCharSet that are equal, since
+        // this won't occur
         return removed.hashCode().inv()
     }
 }
