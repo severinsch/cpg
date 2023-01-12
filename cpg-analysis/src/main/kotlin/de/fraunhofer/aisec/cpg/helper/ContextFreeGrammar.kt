@@ -28,33 +28,43 @@ package de.fraunhofer.aisec.cpg.helper
 import de.fraunhofer.aisec.cpg.graph.Node
 import de.fraunhofer.aisec.cpg.graph.types.Type
 
-abstract class Production
+
+sealed interface Production
+
+sealed interface OperationProduction: Production {
+    val op: Operation
+}
+
+sealed interface BinaryProduction: Production {
+    // TODO: getter for second target NT
+}
+
 
 // A -> "abc"
-class TerminalProduction(val terminal: Terminal) : Production() {
+class TerminalProduction(val terminal: Terminal) : Production {
     // constructor(string_literal: String) : this(Regex.fromLiteral(string_literal))
 }
 
 // X -> Y
-class UnitProduction(var y_id: Long) : Production()
+class UnitProduction(var y_id: Long) : Production
 
 // X -> op(Y)
 class UnaryOpProduction(
-    var op: Operation,
+    override val op: Operation,
     var y_id: Long,
-    var other_args: List<Long> = emptyList()
-) : Production()
+    var other_args: List<Long> = emptyList(),
+) : OperationProduction
 
 // X -> op(Y, Z)
 class BinaryOpProduction(
-    var op: Operation,
+    override val op: Operation,
     var y_id: Long,
     var z_id: Long,
     var other_args: List<Long> = emptyList()
-) : Production()
+) : OperationProduction, BinaryProduction
 
 // X -> Y Z
-class ConcatProduction(var y_id: Long, var z_id: Long) : Production()
+class ConcatProduction(var y_id: Long, var z_id: Long) : BinaryProduction
 
 class Nonterminal(var id: Long, val productions: MutableSet<Production> = mutableSetOf()) {
     fun addProduction(production: Production) {
@@ -112,7 +122,6 @@ class ContextFreeGrammar(var nonterminals: HashMap<Long, Nonterminal> = hashMapO
                 is UnitProduction -> listOf(this.getNonterminal(p.y_id)!!)
                 is ConcatProduction ->
                     listOf(this.getNonterminal(p.y_id)!!, this.getNonterminal(p.z_id)!!)
-                else -> throw IllegalStateException("unreachable when branch")
             }
         }
     }
@@ -151,7 +160,6 @@ class ContextFreeGrammar(var nonterminals: HashMap<Long, Nonterminal> = hashMapO
                             }
                         }
                     }
-                    else -> throw IllegalStateException("unreachable when branch")
                 }
             }
         }
@@ -168,7 +176,6 @@ class ContextFreeGrammar(var nonterminals: HashMap<Long, Nonterminal> = hashMapO
                         is UnaryOpProduction -> "${p.op}(${p.y_id})"
                         is BinaryOpProduction -> "${p.op}(${p.y_id}, ${p.z_id})"
                         is ConcatProduction -> "${p.y_id} ${p.z_id}"
-                        else -> "error"
                     }
             }
         }

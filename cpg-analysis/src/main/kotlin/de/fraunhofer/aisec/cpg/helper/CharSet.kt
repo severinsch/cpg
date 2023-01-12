@@ -62,7 +62,7 @@ sealed interface CharSet {
     fun toRegexPattern(): String
 }
 
-// are CharSet that represents a Set of form C = Σ \ {c1, c2, c3, ...}
+// a CharSet that represents a Set of form C = Σ \ {c1, c2, c3, ...}
 class SigmaCharSet(val removed: MutableSet<Char> = mutableSetOf()) : CharSet {
 
     override fun contains(c: Char): Boolean {
@@ -106,9 +106,15 @@ class SigmaCharSet(val removed: MutableSet<Char> = mutableSetOf()) : CharSet {
         // SigmaCharSet and SetCharSet *could* be equal, this is ignored here
         return other is SigmaCharSet && other.removed == removed
     }
+
+    override fun hashCode(): Int {
+        // invert to ensure SigmaCharSet Σ \ {'a'} has a different hash from SetCharSet {'a'}
+        // like equals this doesn't account for SigmaCharSet and SetCharSet that are equal, since this won't occur
+        return removed.hashCode().inv()
+    }
 }
 
-// are CharSet that represents a Set of form C = {c1, c2, c3, ...}
+// a CharSet that represents a Set of form C = {c1, c2, c3, ...}
 class SetCharSet(val chars: MutableSet<Char> = mutableSetOf()) : CharSet {
 
     constructor(vararg cs: Char) : this(cs.toMutableSet())
@@ -144,6 +150,7 @@ class SetCharSet(val chars: MutableSet<Char> = mutableSetOf()) : CharSet {
     }
 
     override fun toRegexPattern(): String {
+        // TODO use character class here?
         var res = ""
         var relevantChars = chars.toSet()
         val digits = ('0'..'9').toSet()
@@ -159,5 +166,9 @@ class SetCharSet(val chars: MutableSet<Char> = mutableSetOf()) : CharSet {
     override fun equals(other: Any?): Boolean {
         // SigmaCharSet and SetCharSet *could* be equal, this is ignored here
         return other is SetCharSet && other.chars == chars
+    }
+
+    override fun hashCode(): Int {
+        return chars.hashCode()
     }
 }

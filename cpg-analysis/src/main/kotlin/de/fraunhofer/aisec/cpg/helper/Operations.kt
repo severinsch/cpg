@@ -90,7 +90,7 @@ fun createOperationProduction(node: BinaryOperator): Production {
     return TerminalProduction(Terminal.anything())
 }
 
-abstract class Operation {
+abstract class Operation(val priority: Int) {
     // STUBS, types will change
     open fun charsetTransformation(cs: CharSet): CharSet = TODO()
     // TODO maybe replace with subclasses for BinaryOperations
@@ -99,7 +99,7 @@ abstract class Operation {
     abstract override fun toString(): String
 }
 
-class ReplaceNoneKnown(val node: Node, val old: Node, val new: Node) : Operation() {
+class ReplaceNoneKnown(val node: Node, val old: Node, val new: Node) : Operation(5) {
     constructor(
         replaceCall: CallExpression
     ) : this(replaceCall, replaceCall.arguments[0], replaceCall.arguments[1])
@@ -109,7 +109,7 @@ class ReplaceNoneKnown(val node: Node, val old: Node, val new: Node) : Operation
     }
 }
 
-class ReplaceBothKnown(val old: Char, val new: Char) : Operation() {
+class ReplaceBothKnown(val old: Char, val new: Char) : Operation(4) {
 
     override fun charsetTransformation(cs: CharSet): CharSet {
         if (cs.contains(old)) {
@@ -128,7 +128,7 @@ class ReplaceBothKnown(val old: Char, val new: Char) : Operation() {
 }
 
 // TODO handle strings?
-class ReplaceOldKnown(val old: Char, val new: Node) : Operation() {
+class ReplaceOldKnown(val old: Char, val new: Node) : Operation(3) {
 
     override fun charsetTransformation(cs: CharSet): CharSet {
         if (cs.contains(old)) {
@@ -142,7 +142,7 @@ class ReplaceOldKnown(val old: Char, val new: Node) : Operation() {
     }
 }
 
-class ReplaceNewKnown(val old: Node, val new: Char) : Operation() {
+class ReplaceNewKnown(val old: Node, val new: Char) : Operation(2) {
 
     override fun charsetTransformation(cs: CharSet): CharSet {
         // TODO non pure problem?
@@ -155,13 +155,13 @@ class ReplaceNewKnown(val old: Node, val new: Char) : Operation() {
     }
 }
 
-class Trim(trimCall: CallExpression) : Operation() {
+class Trim(trimCall: CallExpression) : Operation(1) {
     override fun toString(): String {
         return "trim"
     }
 }
 
-class Repeat(val node: Node, val amount: Node) : Operation() {
+class Repeat(val node: Node, val amount: Node) : Operation(1) {
     // for things like this the regular Approximation will maybe try to use a ValueEvaluator to
     // get the Int value of amount and just concatenate the regex for the base n times, (base*)
     // otherwise
