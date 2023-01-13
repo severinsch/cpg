@@ -62,13 +62,13 @@ fun createOperationProduction(node: CallExpression): Production {
                 }
                 else -> throw IllegalStateException("Unreachable")
             }
-        return UnaryOpProduction(operation, node.base?.id!!)
+        return UnaryOpProduction(operation, node.base!!)
     }
     if (name in setOf("concat")) {
-        return ConcatProduction(node.base?.id!!, node.arguments.first().id!!)
+        return ConcatProduction(node.base!!, node.arguments.first())
     }
     if (name in setOf("repeat")) {
-        return UnaryOpProduction(Repeat(node, node.arguments.first()), node.base?.id!!)
+        return UnaryOpProduction(Repeat(node, node.arguments.first()), node.base!!)
     }
     return TerminalProduction(Terminal.anything())
 }
@@ -76,7 +76,7 @@ fun createOperationProduction(node: CallExpression): Production {
 fun createOperationProduction(node: BinaryOperator): Production {
     when (node.operatorCode) {
         "+",
-        "+=" -> return ConcatProduction(node.lhs?.id!!, node.rhs?.id!!)
+        "+=" -> return ConcatProduction(node.lhs!!, node.rhs!!)
         // not possible in Java, just to show that the Operations don't depend on whether they come
         // from a Call or an Operator
         "*" -> {
@@ -84,7 +84,7 @@ fun createOperationProduction(node: BinaryOperator): Production {
                 if (node.lhs?.type?.typeName?.lowercase()?.contains("int") == true)
                     arrayOf(node.lhs, node.rhs)
                 else arrayOf(node.rhs, node.lhs)
-            return UnaryOpProduction(Repeat(node, amount), arg?.id!!)
+            return UnaryOpProduction(Repeat(node, amount), arg!!)
         }
     }
     return TerminalProduction(Terminal.anything())
@@ -158,6 +158,10 @@ class ReplaceNewKnown(val old: Node, val new: Char) : Operation(2) {
 class Trim(trimCall: CallExpression) : Operation(1) {
     override fun toString(): String {
         return "trim"
+    }
+
+    override fun charsetTransformation(cs: CharSet): CharSet {
+        return cs
     }
 }
 

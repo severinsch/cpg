@@ -19,6 +19,7 @@ public class Tricky
         String s = "";
         for(int x = 0; x < 3; x++){
             s = s + input;
+            // s = s.trim();
         }
         if(!s.isEmpty()){
             s = s.replace('a', 'n');

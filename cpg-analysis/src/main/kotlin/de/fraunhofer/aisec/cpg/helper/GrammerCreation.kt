@@ -98,7 +98,7 @@ private fun handleDefault(node: Node, cfg: ContextFreeGrammar) {
         return
     }
     for (dataSource in node.prevDFG) {
-        nt.addProduction(UnitProduction(dataSource.id!!))
+        nt.addProduction(UnitProduction(dataSource))
     }
     cfg.addNonterminal(node, nt)
 }
@@ -110,7 +110,7 @@ private fun handleNewExpression(node: NewExpression, cfg: ContextFreeGrammar) {
     }
     val init = node.initializer // ConstructExpression for java
     if (init != null) {
-        nt.addProduction(UnitProduction(init.id!!))
+        nt.addProduction(UnitProduction(init))
     }
     cfg.addNonterminal(node, nt)
 }
@@ -135,7 +135,7 @@ private fun handleConstructExpression(node: ConstructExpression, cfg: ContextFre
         }
         if (args[0].isString()) {
             // String("original")
-            nt.addProduction(UnitProduction(args[0].id!!))
+            nt.addProduction(UnitProduction(args[0]))
             cfg.addNonterminal(node, nt)
             return
         }
@@ -156,7 +156,7 @@ private fun handleParamVariableDeclaration(
         nt.addProduction(TerminalProduction(Terminal(node.type)))
     } else {
         for (data_source in node.prevDFG) {
-            nt.addProduction(UnitProduction(data_source.id!!))
+            nt.addProduction(UnitProduction(data_source))
         }
     }
     cfg.addNonterminal(node, nt)
@@ -175,7 +175,7 @@ private fun handleVariableDeclaration(node: VariableDeclaration, cfg: ContextFre
     if (initializer == null || initializer is UninitializedValue) {
         nt.addProduction(TerminalProduction(Terminal(node.type)))
     } else {
-        nt.addProduction(UnitProduction(initializer.id!!))
+        nt.addProduction(UnitProduction(initializer))
     }
     cfg.addNonterminal(node, nt)
 }
@@ -203,7 +203,7 @@ private fun handleDeclaredReferenceExpression(
         nt.addProduction(prod)
     } else {
         for (data_source in node.prevDFG) {
-            nt.addProduction(UnitProduction(data_source.id!!))
+            nt.addProduction(UnitProduction(data_source))
         }
     }
 
@@ -233,7 +233,7 @@ private fun handleCallExpression(node: CallExpression, cfg: ContextFreeGrammar) 
     // for local functions where invokes is known: get grammar info from function
     if (node.invokes.isNotEmpty()) {
         for (func in node.invokes) {
-            nt.addProduction(UnitProduction(func.id!!))
+            nt.addProduction(UnitProduction(func))
         }
     } else {
         nt.addProduction(createOperationProduction(node))
@@ -249,7 +249,7 @@ private fun handleFunctionDeclaration(node: FunctionDeclaration, cfg: ContextFre
         return
     }
     for (data_source in node.prevDFG) {
-        nt.addProduction(UnitProduction(data_source.id!!))
+        nt.addProduction(UnitProduction(data_source))
     }
     cfg.addNonterminal(node, nt)
 }
@@ -257,7 +257,7 @@ private fun handleFunctionDeclaration(node: FunctionDeclaration, cfg: ContextFre
 private fun handleReturnStatement(node: ReturnStatement, cfg: ContextFreeGrammar) {
     if (node.returnValue != null) {
         val nt = Nonterminal(node.id!!)
-        nt.addProduction(UnitProduction(node.returnValue.id!!))
+        nt.addProduction(UnitProduction(node.returnValue))
         cfg.addNonterminal(node, nt)
     }
 }

@@ -98,6 +98,9 @@ class SigmaCharSet(val removed: MutableSet<Char> = mutableSetOf()) : CharSet {
     }
 
     override fun toRegexPattern(): String {
+        if (removed.isEmpty()) {
+            return ".*"
+        }
         val chars = removed.joinToString(separator = "") { it.toString() }
         return "[^$chars]*"
     }
@@ -151,6 +154,9 @@ class SetCharSet(val chars: MutableSet<Char> = mutableSetOf()) : CharSet {
     }
 
     override fun toRegexPattern(): String {
+        if (chars.isEmpty()) {
+            return ""
+        }
         // TODO use character class here?
         var res = ""
         var relevantChars = chars.toSet()

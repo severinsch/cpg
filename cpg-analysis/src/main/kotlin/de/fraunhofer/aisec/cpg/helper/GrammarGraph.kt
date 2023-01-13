@@ -44,8 +44,8 @@ class Component {
     }
 }
 
-class SCC(grammar: ContextFreeGrammar) {
-    val components: List<Component> = mutableListOf()
+class SCC(private val grammar: ContextFreeGrammar) {
+    val components: MutableList<Component> = mutableListOf()
     private val componentsForNodes: MutableMap<Nonterminal, Component> = mutableMapOf()
     private val lowlink = mutableMapOf<Nonterminal, Int>()
     private val index = mutableMapOf<Nonterminal, Int>()
@@ -61,7 +61,6 @@ class SCC(grammar: ContextFreeGrammar) {
             count++
             stack.push(node)
             for (neighbor in grammar.getSuccessorsFor(node)) {
-                println("Successor for ${node.id}: ${neighbor.id}")
                 if (!index.contains(neighbor)) {
                     count = visit(neighbor, count, stack)
                     lowlink[node] = min(lowlink[neighbor]!!, lowlink[node]!!)
@@ -71,7 +70,7 @@ class SCC(grammar: ContextFreeGrammar) {
             }
             if (lowlink[node] == index[node]) {
                 val comp = Component()
-                components.plus(comp)
+                components.add(comp)
 
                 do {
                     val x = stack.pop()

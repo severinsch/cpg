@@ -28,12 +28,15 @@ package de.fraunhofer.aisec.cpg.helper
 import java.util.*
 
 class CharSetApproximation(private val grammar: ContextFreeGrammar) {
-    private val charsets: MutableMap<Nonterminal, CharSet> = mutableMapOf()
-    private val predecessors: MutableMap<Nonterminal, MutableSet<Nonterminal>> =
-        grammar.getPredecessors()
-    private var scc: SCC
+    // lateinit to delay all computations until approximate is called
+    private lateinit var charsets: MutableMap<Nonterminal, CharSet>
+    private lateinit var predecessors: MutableMap<Nonterminal, MutableSet<Nonterminal>>
+    private lateinit var scc: SCC
 
-    init {
+    fun approximate() {
+        charsets = mutableMapOf()
+        predecessors = grammar.getPredecessors()
+        // compute strongly connected components
         scc = SCC(grammar)
         // here we use the property that tarjans algorithm for SCC provides topological ordering
         for (comp in scc.components) {
@@ -84,17 +87,16 @@ class CharSetApproximation(private val grammar: ContextFreeGrammar) {
     }
 
     private fun replaceOperationProduction(prod: OperationProduction, nt: Nonterminal) {
-
         val charset: CharSet =
             when (prod) {
                 is UnaryOpProduction -> {
-                    val oldCharset = charsets[grammar.getNonterminal(prod.y_id)]
+                    val oldCharset = charsets[grammar.getNonterminal(prod.target1)]
                     // TODO improve this
                     prod.op.charsetTransformation(oldCharset!!)
                 }
                 is BinaryOpProduction -> {
-                    val oldCharset1 = charsets[grammar.getNonterminal(prod.y_id)]
-                    val oldCharset2 = charsets[grammar.getNonterminal(prod.z_id)]
+                    val oldCharset1 = charsets[grammar.getNonterminal(prod.target1)]
+                    val oldCharset2 = charsets[grammar.getNonterminal(prod.target2)]
                     // TODO improve this
                     prod.op.charsetTransformation(oldCharset1!!, oldCharset2!!)
                 }
@@ -104,12 +106,13 @@ class CharSetApproximation(private val grammar: ContextFreeGrammar) {
         nt.productions.add(TerminalProduction(terminal))
     }
 
+    // TODO maybe add contract for type inference
     private fun Component.detectOperationCycle(prod: Production): Boolean {
         return when (prod) {
-            is UnaryOpProduction -> this.nonterminal.contains(grammar.getNonterminal(prod.y_id))
+            is UnaryOpProduction -> this.nonterminal.contains(grammar.getNonterminal(prod.target1))
             is BinaryOpProduction ->
-                this.nonterminal.contains(grammar.getNonterminal(prod.y_id)) ||
-                    this.nonterminal.contains(grammar.getNonterminal(prod.z_id))
+                this.nonterminal.contains(grammar.getNonterminal(prod.target1)) ||
+                    this.nonterminal.contains(grammar.getNonterminal(prod.target2))
             else -> false
         }
     }
@@ -146,31 +149,31 @@ class CharSetApproximation(private val grammar: ContextFreeGrammar) {
         val newSet = currentCharSet.union(newSets)
 
         charsets[nt] = newSet
-        return newSet == currentCharSet
+        return newSet != currentCharSet
     }
 
     private fun getCharsetForProduction(prod: Production): CharSet {
         return when (prod) {
             is TerminalProduction -> prod.terminal.charset
             is UnitProduction -> {
-                val nonterminal = grammar.getNonterminal(prod.y_id)!!
+                val nonterminal = grammar.getNonterminal(prod.target1)!!
                 charsets.getOrDefault(nonterminal, CharSet.empty())
             }
             is UnaryOpProduction -> {
-                val nonterminal = grammar.getNonterminal(prod.y_id)!!
+                val nonterminal = grammar.getNonterminal(prod.target1)!!
                 prod.op.charsetTransformation(charsets.getOrDefault(nonterminal, CharSet.empty()))
             }
             is BinaryOpProduction -> {
-                val nonterminal1 = grammar.getNonterminal(prod.y_id)!!
-                val nonterminal2 = grammar.getNonterminal(prod.z_id)!!
+                val nonterminal1 = grammar.getNonterminal(prod.target1)!!
+                val nonterminal2 = grammar.getNonterminal(prod.target2)!!
                 prod.op.charsetTransformation(
                     charsets.getOrDefault(nonterminal1, CharSet.empty()),
                     charsets.getOrDefault(nonterminal2, CharSet.empty()),
                 )
             }
             is ConcatProduction -> {
-                val nonterminal1 = grammar.getNonterminal(prod.y_id)!!
-                val nonterminal2 = grammar.getNonterminal(prod.z_id)!!
+                val nonterminal1 = grammar.getNonterminal(prod.target1)!!
+                val nonterminal2 = grammar.getNonterminal(prod.target2)!!
                 charsets
                     .getOrDefault(nonterminal1, CharSet.empty())
                     .union(charsets.getOrDefault(nonterminal2, CharSet.empty()))

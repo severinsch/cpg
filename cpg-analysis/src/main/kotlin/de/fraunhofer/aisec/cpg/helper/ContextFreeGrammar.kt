@@ -28,14 +28,37 @@ package de.fraunhofer.aisec.cpg.helper
 import de.fraunhofer.aisec.cpg.graph.Node
 import de.fraunhofer.aisec.cpg.graph.types.Type
 
+/*
+    this interface structure groups productions in groups to allow the following features
+
+    // exhaustive but still concise, focus on "how many NTs are there on the left hand side" without needing more detail
+    // for this to work, the interfaces need to be sealed
+    when(production) {
+        is TerminalProduction -> ...
+        is UnaryProduction -> <... using target1>
+        is BinaryProduction -> <... using target1 and target2>
+    }
+
+    // easy access to only operation productions, easy to ignore rest
+    when(production) {
+        is OperationProduction -> <do something with op>
+        else -> <do nothing>
+    }
+*/
+
 sealed interface Production
 
-sealed interface OperationProduction : Production {
-    val op: Operation
+sealed interface UnaryProduction : Production {
+    val target1: Node
 }
 
 sealed interface BinaryProduction : Production {
-    // TODO: getter for second target NT
+    val target1: Node
+    val target2: Node
+}
+
+sealed interface OperationProduction : Production {
+    val op: Operation
 }
 
 // A -> "abc"
@@ -44,29 +67,42 @@ class TerminalProduction(val terminal: Terminal) : Production {
 }
 
 // X -> Y
-class UnitProduction(var y_id: Long) : Production
+class UnitProduction(override val target1: Node) : UnaryProduction
 
 // X -> op(Y)
 class UnaryOpProduction(
     override val op: Operation,
-    var y_id: Long,
+    override val target1: Node,
     var other_args: List<Long> = emptyList(),
-) : OperationProduction
+) : OperationProduction, UnaryProduction
 
 // X -> op(Y, Z)
 class BinaryOpProduction(
     override val op: Operation,
-    var y_id: Long,
-    var z_id: Long,
+    override val target1: Node,
+    override val target2: Node,
     var other_args: List<Long> = emptyList()
 ) : OperationProduction, BinaryProduction
 
 // X -> Y Z
-class ConcatProduction(var y_id: Long, var z_id: Long) : BinaryProduction
+class ConcatProduction(override val target1: Node, override val target2: Node) : BinaryProduction
 
-class Nonterminal(var id: Long, val productions: MutableSet<Production> = mutableSetOf()) {
+class Nonterminal(var id: Long, val productions: MutableSet<Production> = mutableSetOf()) :
+    Comparable<Nonterminal> {
     fun addProduction(production: Production) {
         productions.add(production)
+    }
+
+    override fun compareTo(other: Nonterminal): Int {
+        return this.id.compareTo(other.id)
+    }
+
+    override fun hashCode(): Int {
+        return id.hashCode()
+    }
+
+    override fun equals(other: Any?): Boolean {
+        return other is Nonterminal && this.id == other.id
     }
 }
 
@@ -114,12 +150,8 @@ class ContextFreeGrammar(var nonterminals: HashMap<Long, Nonterminal> = hashMapO
         return nt.productions.flatMap { p ->
             when (p) {
                 is TerminalProduction -> emptyList()
-                is UnaryOpProduction -> listOf(this.getNonterminal(p.y_id)!!)
-                is BinaryOpProduction ->
-                    listOf(this.getNonterminal(p.y_id)!!, this.getNonterminal(p.z_id)!!)
-                is UnitProduction -> listOf(this.getNonterminal(p.y_id)!!)
-                is ConcatProduction ->
-                    listOf(this.getNonterminal(p.y_id)!!, this.getNonterminal(p.z_id)!!)
+                is UnaryProduction -> listOf(this.getNonterminal(p.target1)!!)
+                is BinaryProduction -> listOf(this.getNonterminal(p.target1)!!, this.getNonterminal(p.target2)!!)
             }
         }
     }
@@ -132,19 +164,23 @@ class ContextFreeGrammar(var nonterminals: HashMap<Long, Nonterminal> = hashMapO
                     is TerminalProduction -> {}
                     is UnitProduction -> {
                         // for nt -> B adds nt to predecessors[B]
-                        predecessors.compute(nonterminals[prod.y_id]!!) { _, preds ->
+                        predecessors.compute(nonterminals[prod.target1.id]!!) { _, preds ->
                             preds?.plus(nt)?.toMutableSet() ?: mutableSetOf(nt)
                         }
                     }
                     is UnaryOpProduction -> {
                         // for nt -> op(B) adds nt to predecessors[B]
-                        predecessors.compute(nonterminals[prod.y_id]!!) { _, preds ->
+                        predecessors.compute(nonterminals[prod.target1.id]!!) { _, preds ->
                             preds?.plus(nt)?.toMutableSet() ?: mutableSetOf(nt)
                         }
                     }
                     is BinaryOpProduction -> {
                         // for nt -> op(X, Y) adds nt to predecessors[X] and predecessors[Y]
-                        for (x in listOfNotNull(nonterminals[prod.y_id], nonterminals[prod.z_id])) {
+                        for (x in
+                            listOfNotNull(
+                                nonterminals[prod.target1.id],
+                                nonterminals[prod.target2.id]
+                            )) {
                             predecessors.compute(x) { _, preds ->
                                 preds?.plus(nt)?.toMutableSet() ?: mutableSetOf(nt)
                             }
@@ -152,7 +188,11 @@ class ContextFreeGrammar(var nonterminals: HashMap<Long, Nonterminal> = hashMapO
                     }
                     is ConcatProduction -> {
                         // for nt -> X Y adds nt to predecessors[X] and predecessors[Y]
-                        for (x in listOfNotNull(nonterminals[prod.y_id], nonterminals[prod.z_id])) {
+                        for (x in
+                            listOfNotNull(
+                                nonterminals[prod.target1.id],
+                                nonterminals[prod.target2.id]
+                            )) {
                             predecessors.compute(x) { _, preds ->
                                 preds?.plus(nt)?.toMutableSet() ?: mutableSetOf(nt)
                             }
@@ -170,12 +210,43 @@ class ContextFreeGrammar(var nonterminals: HashMap<Long, Nonterminal> = hashMapO
                 "${nt.id} -> " +
                     when (p) {
                         is TerminalProduction -> "\"${p.terminal.regex}\""
-                        is UnitProduction -> p.y_id
-                        is UnaryOpProduction -> "${p.op}(${p.y_id})"
-                        is BinaryOpProduction -> "${p.op}(${p.y_id}, ${p.z_id})"
-                        is ConcatProduction -> "${p.y_id} ${p.z_id}"
+                        is UnitProduction -> p.target1.id
+                        is UnaryOpProduction -> "${p.op}(${p.target1.id})"
+                        is BinaryOpProduction -> "${p.op}(${p.target1.id}, ${p.target2.id})"
+                        is ConcatProduction -> "${p.target1.id} ${p.target2.id}"
                     }
             }
         }
+    }
+
+    fun toDOT(scc: SCC? = null): String {
+        val nodes =
+            nonterminals.values.joinToString(separator = "\n", postfix = "\n") { nt ->
+                "node_${nt.id} [label = \"${nt.id}\"];"
+            }
+        val edges =
+            nonterminals.values.joinToString(separator = "\n", postfix = "\n") { nt ->
+                nt.productions.joinToString(separator = "\n") { prod ->
+                    when (prod) {
+                        is BinaryProduction ->
+                            "node_${nt.id} -> node_${prod.target1.id};\n" +
+                                "node_${nt.id} -> node_${prod.target2.id};"
+                        is TerminalProduction ->
+                            "node_${nt.id} -> \"regex${prod.hashCode()}_${prod.terminal.regex}\";"
+                        is UnaryProduction -> "node_${nt.id} -> node_${prod.target1.id};"
+                    }
+                }
+            }
+        val sccSubgraphs =
+            scc?.components?.joinToString(separator = "\n") { comp ->
+                "subgraph cluster_${comp.hashCode()}{${
+            comp.nonterminal.joinToString(separator = "; ") {
+                "node_${it.id}"
+            }
+        }}"
+            }
+                ?: ""
+
+        return "digraph grammar {\n$nodes$edges$sccSubgraphs\n}"
     }
 }

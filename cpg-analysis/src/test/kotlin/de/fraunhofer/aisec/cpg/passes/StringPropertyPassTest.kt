@@ -36,6 +36,7 @@ import de.fraunhofer.aisec.cpg.graph.statements.expressions.DeclaredReferenceExp
 import de.fraunhofer.aisec.cpg.helper.*
 import de.fraunhofer.aisec.cpg.passes.StringPropertyPass.*
 import java.nio.file.Path
+import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Test
@@ -51,7 +52,7 @@ class StringPropertyPassTest {
         TranslationManager.builder().build().analyze()
         tu =
             TestUtils.analyzeAndGetFirstTU(
-                listOf(topLevel.resolve("Tricky.java").toFile()),
+                listOf(topLevel.resolve("StringProperties.java").toFile()),
                 topLevel,
                 true
             ) {
@@ -66,55 +67,78 @@ class StringPropertyPassTest {
     fun testTest() {
         val hotspot_node = StringPropertyHotspots.print_hotspots.first()
         assertNotNull(hotspot_node)
-        val cfg2 = createGrammar(hotspot_node)
+        val cfg = createGrammar(hotspot_node)
         println("GRAMMAR CREATED FROM hotspot node with id ${hotspot_node.id}:")
-        println(cfg2.printGrammar())
-        val scc = SCC(cfg2)
-        println(scc)
+        println(cfg.printGrammar())
+        val scc = SCC(cfg)
+        // (scc)
+        // println(cfg.toDOT(scc))
+        val csa = CharSetApproximation(cfg)
+        csa.approximate()
+        val scc2 = SCC(cfg)
+        println(cfg.toDOT(scc2))
+    }
+
+    private fun getTestNode(id: Long): Node {
+        val n = Node()
+        n.id = id
+        return n
     }
 
     @Test
     fun testSCCCreation() {
         val g = ContextFreeGrammar()
 
+        val nodes = (0..9).map { getTestNode(it.toLong()) }
+
         val nt1 = Nonterminal(1)
-        nt1.addProduction(UnitProduction(2)) // a -> b
+        nt1.addProduction(UnitProduction(nodes[2])) // a -> b
         g.addNonterminal(1, nt1)
 
         val nt2 = Nonterminal(2)
-        nt2.addProduction(UnitProduction(3)) // b -> c
-        nt2.addProduction(ConcatProduction(5, 6)) // b -> e, b -> f
+        nt2.addProduction(UnitProduction(nodes[3])) // b -> c
+        nt2.addProduction(ConcatProduction(nodes[5], nodes[6])) // b -> e, b -> f
         g.addNonterminal(2, nt2)
 
         val nt3 = Nonterminal(3)
-        nt3.addProduction(UnitProduction(4)) // c-> d
-        nt3.addProduction(UnitProduction(7)) // c->g
+        nt3.addProduction(UnitProduction(nodes[4])) // c-> d
+        nt3.addProduction(UnitProduction(nodes[7])) // c->g
         g.addNonterminal(3, nt3)
 
         val nt4 = Nonterminal(4)
-        nt4.addProduction(UnitProduction(3)) // d -> c
-        nt4.addProduction(UnitProduction(8)) // d -> h
+        nt4.addProduction(UnitProduction(nodes[3])) // d -> c
+        nt4.addProduction(UnitProduction(nodes[8])) // d -> h
         g.addNonterminal(4, nt4)
 
         val nt5 = Nonterminal(5)
-        nt5.addProduction(ConcatProduction(1, 6)) // e -> a, e -> f
+        nt5.addProduction(ConcatProduction(nodes[1], nodes[6])) // e -> a, e -> f
         g.addNonterminal(5, nt5)
 
         val nt6 = Nonterminal(6)
-        nt6.addProduction(UnitProduction(7)) // f -> g
+        nt6.addProduction(UnitProduction(nodes[7])) // f -> g
         g.addNonterminal(6, nt6)
 
         val nt7 = Nonterminal(7)
-        nt7.addProduction(UnitProduction(6)) // g -> f
+        nt7.addProduction(UnitProduction(nodes[6])) // g -> f
         g.addNonterminal(7, nt7)
 
         val nt8 = Nonterminal(8)
-        nt8.addProduction(UnitProduction(7)) // h -> g
-        nt8.addProduction(UnitProduction(4)) // h -> d
+        nt8.addProduction(UnitProduction(nodes[7])) // h -> g
+        nt8.addProduction(UnitProduction(nodes[4])) // h -> d
         g.addNonterminal(8, nt8)
 
+        val nt9 = Nonterminal(9)
+        nt9.addProduction(UnitProduction(nodes[8])) //
+        g.addNonterminal(9, nt9)
+
         val scc = SCC(g)
-        println(scc)
+
+        // components should be {1, 2, 5}, {6, 7}, {8, 4, 3}, {9}
+        assertEquals(4, scc.components.size)
+        val compSets =
+            scc.components.map { comp -> comp.nonterminal.map { nt -> nt.id }.toSet() }.toSet()
+        val expected: Set<Set<Long>> = setOf(setOf(1, 2, 5), setOf(6, 7), setOf(8, 4, 3), setOf(9))
+        assertEquals(expected, compSets)
     }
 
     @Test
