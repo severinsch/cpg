@@ -57,7 +57,7 @@ class CharSetApproximation(private val grammar: ContextFreeGrammar) {
                 var maxProd: OperationProduction? = null
                 var maxOp: Operation? = null
 
-                comp.nonterminal.forEach { nt ->
+                comp.nonterminals.forEach { nt ->
                     nt.productions.forEach { prod ->
                         if (comp.detectOperationCycle(prod)) {
                             if (
@@ -91,13 +91,13 @@ class CharSetApproximation(private val grammar: ContextFreeGrammar) {
         val charset: CharSet =
             when (prod) {
                 is UnaryOpProduction -> {
-                    val oldCharset = charsets[grammar.getNonterminal(prod.target1)]
+                    val oldCharset = charsets[prod.target1]
                     // TODO improve this
                     prod.op.charsetTransformation(oldCharset!!)
                 }
                 is BinaryOpProduction -> {
-                    val oldCharset1 = charsets[grammar.getNonterminal(prod.target1)]
-                    val oldCharset2 = charsets[grammar.getNonterminal(prod.target2)]
+                    val oldCharset1 = charsets[prod.target1]
+                    val oldCharset2 = charsets[prod.target2]
                     // TODO improve this
                     prod.op.charsetTransformation(oldCharset1!!, oldCharset2!!)
                 }
@@ -110,10 +110,9 @@ class CharSetApproximation(private val grammar: ContextFreeGrammar) {
     // TODO maybe add contract for type inference
     private fun Component.detectOperationCycle(prod: Production): Boolean {
         return when (prod) {
-            is UnaryOpProduction -> this.nonterminal.contains(grammar.getNonterminal(prod.target1))
+            is UnaryOpProduction -> this.nonterminals.contains(prod.target1)
             is BinaryOpProduction ->
-                this.nonterminal.contains(grammar.getNonterminal(prod.target1)) ||
-                    this.nonterminal.contains(grammar.getNonterminal(prod.target2))
+                this.nonterminals.contains(prod.target1) || this.nonterminals.contains(prod.target2)
             else -> false
         }
     }
@@ -125,7 +124,7 @@ class CharSetApproximation(private val grammar: ContextFreeGrammar) {
     private fun findCharSets(component: Component) {
         // TODO maybe reset charsets for all nonterminals in component?
         // fixpoint iteration, within this component
-        val worklist: SortedSet<Nonterminal> = TreeSet(component.nonterminal)
+        val worklist: SortedSet<Nonterminal> = TreeSet(component.nonterminals)
         while (!worklist.isEmpty()) {
             val n = worklist.first()
             worklist.remove(n)
@@ -157,27 +156,21 @@ class CharSetApproximation(private val grammar: ContextFreeGrammar) {
         return when (prod) {
             is TerminalProduction -> prod.terminal.charset
             is UnitProduction -> {
-                val nonterminal = grammar.getNonterminal(prod.target1)!!
-                charsets.getOrDefault(nonterminal, CharSet.empty())
+                charsets.getOrDefault(prod.target1, CharSet.empty())
             }
             is UnaryOpProduction -> {
-                val nonterminal = grammar.getNonterminal(prod.target1)!!
-                prod.op.charsetTransformation(charsets.getOrDefault(nonterminal, CharSet.empty()))
+                prod.op.charsetTransformation(charsets.getOrDefault(prod.target1, CharSet.empty()))
             }
             is BinaryOpProduction -> {
-                val nonterminal1 = grammar.getNonterminal(prod.target1)!!
-                val nonterminal2 = grammar.getNonterminal(prod.target2)!!
                 prod.op.charsetTransformation(
-                    charsets.getOrDefault(nonterminal1, CharSet.empty()),
-                    charsets.getOrDefault(nonterminal2, CharSet.empty()),
+                    charsets.getOrDefault(prod.target1, CharSet.empty()),
+                    charsets.getOrDefault(prod.target2, CharSet.empty()),
                 )
             }
             is ConcatProduction -> {
-                val nonterminal1 = grammar.getNonterminal(prod.target1)!!
-                val nonterminal2 = grammar.getNonterminal(prod.target2)!!
                 charsets
-                    .getOrDefault(nonterminal1, CharSet.empty())
-                    .union(charsets.getOrDefault(nonterminal2, CharSet.empty()))
+                    .getOrDefault(prod.target1, CharSet.empty())
+                    .union(charsets.getOrDefault(prod.target2, CharSet.empty()))
             }
         }
     }

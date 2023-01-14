@@ -36,8 +36,12 @@ enum class Recursion {
 }
 
 class Component {
-    val recursion: Recursion = Recursion.NONE
-    val nonterminal: MutableCollection<Nonterminal> = mutableSetOf()
+    var recursion: Recursion = Recursion.NONE
+    val nonterminals: MutableCollection<Nonterminal> = mutableSetOf()
+
+    fun addNonterminal(nt: Nonterminal) {
+        nonterminals.add(nt)
+    }
 
     fun determineRecursion() {
         TODO()

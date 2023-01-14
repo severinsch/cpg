@@ -25,7 +25,6 @@
  */
 package de.fraunhofer.aisec.cpg.helper
 
-import de.fraunhofer.aisec.cpg.graph.Node
 import de.fraunhofer.aisec.cpg.graph.types.Type
 import de.fraunhofer.aisec.cpg.helper.approximations.CharSet
 import de.fraunhofer.aisec.cpg.helper.approximations.SetCharSet
@@ -51,12 +50,12 @@ import de.fraunhofer.aisec.cpg.helper.approximations.SetCharSet
 sealed interface Production
 
 sealed interface UnaryProduction : Production {
-    val target1: Node
+    val target1: Nonterminal
 }
 
 sealed interface BinaryProduction : Production {
-    val target1: Node
-    val target2: Node
+    val target1: Nonterminal
+    val target2: Nonterminal
 }
 
 sealed interface OperationProduction : Production {
@@ -69,25 +68,26 @@ class TerminalProduction(val terminal: Terminal) : Production {
 }
 
 // X -> Y
-class UnitProduction(override val target1: Node) : UnaryProduction
+class UnitProduction(override val target1: Nonterminal) : UnaryProduction
 
 // X -> op(Y)
 class UnaryOpProduction(
     override val op: Operation,
-    override val target1: Node,
+    override val target1: Nonterminal,
     var other_args: List<Long> = emptyList(),
 ) : OperationProduction, UnaryProduction
 
 // X -> op(Y, Z)
 class BinaryOpProduction(
     override val op: Operation,
-    override val target1: Node,
-    override val target2: Node,
+    override val target1: Nonterminal,
+    override val target2: Nonterminal,
     var other_args: List<Long> = emptyList()
 ) : OperationProduction, BinaryProduction
 
 // X -> Y Z
-class ConcatProduction(override val target1: Node, override val target2: Node) : BinaryProduction
+class ConcatProduction(override val target1: Nonterminal, override val target2: Nonterminal) :
+    BinaryProduction
 
 class Nonterminal(var id: Long, val productions: MutableSet<Production> = mutableSetOf()) :
     Comparable<Nonterminal> {
@@ -132,28 +132,22 @@ class ContextFreeGrammar(var nonterminals: HashMap<Long, Nonterminal> = hashMapO
         nonterminals.clear()
     }
 
-    fun addNonterminal(node: Node, nt: Nonterminal) {
-        nonterminals[node.id!!] = nt
+    fun addNonterminal(nt: Nonterminal) {
+        nonterminals.putIfAbsent(nt.id, nt)
     }
 
-    fun addNonterminal(id: Long, nt: Nonterminal) {
-        nonterminals[id] = nt
-    }
-
-    fun getNonterminal(node: Node): Nonterminal? {
-        return nonterminals[node.id!!]
-    }
-
-    fun getNonterminal(id: Long): Nonterminal? {
-        return nonterminals[id]
+    fun getOrCreateNonterminal(id: Long?): Nonterminal {
+        // if id not present, adds new Nonterminal and returns it
+        // if id present returns value
+        return nonterminals.computeIfAbsent(id!!) { k -> Nonterminal(k) }
     }
 
     fun getSuccessorsFor(nt: Nonterminal): Iterable<Nonterminal> {
         return nt.productions.flatMap { p ->
             when (p) {
                 is TerminalProduction -> emptyList()
-                is UnaryProduction -> listOf(this.getNonterminal(p.target1)!!)
-                is BinaryProduction -> listOf(this.getNonterminal(p.target1)!!, this.getNonterminal(p.target2)!!)
+                is UnaryProduction -> listOf(p.target1)
+                is BinaryProduction -> listOf(p.target1, p.target2)
             }
         }
     }
@@ -242,7 +236,7 @@ class ContextFreeGrammar(var nonterminals: HashMap<Long, Nonterminal> = hashMapO
         val sccSubgraphs =
             scc?.components?.joinToString(separator = "\n") { comp ->
                 "subgraph cluster_${comp.hashCode()}{${
-            comp.nonterminal.joinToString(separator = "; ") {
+            comp.nonterminals.joinToString(separator = "; ") {
                 "node_${it.id}"
             }
         }}"

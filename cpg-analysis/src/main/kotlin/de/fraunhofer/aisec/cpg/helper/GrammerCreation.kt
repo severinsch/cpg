@@ -92,37 +92,39 @@ fun handle(node: Node?, cfg: ContextFreeGrammar) {
 
 private fun handleDefault(node: Node, cfg: ContextFreeGrammar) {
     println("default handled node ${node.javaClass.name} (id: ${node.id}) at ${node.location}")
-    val nt = Nonterminal(node.id!!)
+    val nt = cfg.getOrCreateNonterminal(node.id!!)
 
     if (node.prevDFG.isEmpty()) {
         return
     }
     for (dataSource in node.prevDFG) {
-        nt.addProduction(UnitProduction(dataSource))
+        val dataSourceNT = cfg.getOrCreateNonterminal(dataSource.id)
+        nt.addProduction(UnitProduction(dataSourceNT))
     }
-    cfg.addNonterminal(node, nt)
+    cfg.addNonterminal(nt)
 }
 
 private fun handleNewExpression(node: NewExpression, cfg: ContextFreeGrammar) {
-    val nt = Nonterminal(node.id!!)
+    val nt = cfg.getOrCreateNonterminal(node.id!!)
     for (dataSource in node.prevDFG) {
         println("DATA SOURCE FOR NEW EXPRESSION: $dataSource")
     }
     val init = node.initializer // ConstructExpression for java
     if (init != null) {
-        nt.addProduction(UnitProduction(init))
+        val initNT = cfg.getOrCreateNonterminal(init.id)
+        nt.addProduction(UnitProduction(initNT))
     }
-    cfg.addNonterminal(node, nt)
+    cfg.addNonterminal(nt)
 }
 
 private fun handleConstructExpression(node: ConstructExpression, cfg: ContextFreeGrammar) {
-    val nt = Nonterminal(node.id!!)
+    val nt = cfg.getOrCreateNonterminal(node.id!!)
     // Constructor call of Java Number Wrapper
     if (node.isNumber()) {
         // should be TerminalProduction with literal of Constructor Argument most of the time
         val prod = getNumberProduction(node.arguments[0])
         nt.addProduction(prod)
-        cfg.addNonterminal(node, nt)
+        cfg.addNonterminal(nt)
         return
     }
     if (node.isString()) {
@@ -130,20 +132,21 @@ private fun handleConstructExpression(node: ConstructExpression, cfg: ContextFre
         if (args.isEmpty()) {
             // String() == ""
             nt.addProduction(TerminalProduction(Terminal("")))
-            cfg.addNonterminal(node, nt)
+            cfg.addNonterminal(nt)
             return
         }
         if (args[0].isString()) {
             // String("original")
-            nt.addProduction(UnitProduction(args[0]))
-            cfg.addNonterminal(node, nt)
+            val argsNT = cfg.getOrCreateNonterminal(args[0].id)
+            nt.addProduction(UnitProduction(argsNT))
+            cfg.addNonterminal(nt)
             return
         }
         // byte[]/char[] etc, complex with charsets, not handled currently
     }
     // here it would be nice to have some information about the toString() method of the object
     nt.addProduction(TerminalProduction(Terminal.anything()))
-    cfg.addNonterminal(node, nt)
+    cfg.addNonterminal(nt)
     return
 }
 
@@ -151,42 +154,44 @@ private fun handleParamVariableDeclaration(
     node: ParamVariableDeclaration,
     cfg: ContextFreeGrammar
 ) {
-    val nt = Nonterminal(node.id!!)
+    val nt = cfg.getOrCreateNonterminal(node.id!!)
     if (node.prevDFG.isEmpty() || node.isNumber()) {
         nt.addProduction(TerminalProduction(Terminal(node.type)))
     } else {
-        for (data_source in node.prevDFG) {
-            nt.addProduction(UnitProduction(data_source))
+        for (dataSource in node.prevDFG) {
+            val dataSourceNT = cfg.getOrCreateNonterminal(dataSource.id)
+            nt.addProduction(UnitProduction(dataSourceNT))
         }
     }
-    cfg.addNonterminal(node, nt)
+    cfg.addNonterminal(nt)
 }
 
 private fun handleLiteral(node: Literal<*>, cfg: ContextFreeGrammar) {
-    val nt = Nonterminal(node.id!!)
+    val nt = cfg.getOrCreateNonterminal(node.id!!)
     nt.addProduction(TerminalProduction(Terminal(node.value)))
-    cfg.addNonterminal(node, nt)
+    cfg.addNonterminal(nt)
 }
 
 private fun handleVariableDeclaration(node: VariableDeclaration, cfg: ContextFreeGrammar) {
-    val nt = Nonterminal(node.id!!)
+    val nt = cfg.getOrCreateNonterminal(node.id!!)
 
     val initializer = node.initializer
     if (initializer == null || initializer is UninitializedValue) {
         nt.addProduction(TerminalProduction(Terminal(node.type)))
     } else {
-        nt.addProduction(UnitProduction(initializer))
+        val initializerNT = cfg.getOrCreateNonterminal(initializer.id)
+        nt.addProduction(UnitProduction(initializerNT))
     }
-    cfg.addNonterminal(node, nt)
+    cfg.addNonterminal(nt)
 }
 
 private fun handleUnaryOperator(node: UnaryOperator, cfg: ContextFreeGrammar) {
-    val nt = Nonterminal(node.id!!)
+    val nt = cfg.getOrCreateNonterminal(node.id!!)
 
     TODO()
     // nt.addProduction(UnaryOpProduction(node.operatorCode, node.input.id!!))
 
-    cfg.addNonterminal(node, nt)
+    cfg.addNonterminal(nt)
 }
 
 private fun handleDeclaredReferenceExpression(
@@ -194,7 +199,7 @@ private fun handleDeclaredReferenceExpression(
     cfg: ContextFreeGrammar
 ) {
 
-    val nt = Nonterminal(node.id!!)
+    val nt = cfg.getOrCreateNonterminal(node.id!!)
     // TODO extend isNumber check (function calls that return int etc) and pull out
     if (node.prevDFG.isEmpty()) {
         nt.addProduction(TerminalProduction(Terminal(node.type)))
@@ -202,12 +207,13 @@ private fun handleDeclaredReferenceExpression(
         val prod = getNumberProduction(node)
         nt.addProduction(prod)
     } else {
-        for (data_source in node.prevDFG) {
-            nt.addProduction(UnitProduction(data_source))
+        for (dataSource in node.prevDFG) {
+            val dataSourceNT = cfg.getOrCreateNonterminal(dataSource.id)
+            nt.addProduction(UnitProduction(dataSourceNT))
         }
     }
 
-    cfg.addNonterminal(node, nt)
+    cfg.addNonterminal(nt)
 }
 
 private fun handleBinaryOp(node: BinaryOperator, cfg: ContextFreeGrammar) {
@@ -215,16 +221,16 @@ private fun handleBinaryOp(node: BinaryOperator, cfg: ContextFreeGrammar) {
         // handled by DFG edge from RHS to LHS
         return
     }
-    val nt = Nonterminal(node.id!!)
+    val nt = cfg.getOrCreateNonterminal(node.id!!)
 
-    nt.addProduction(createOperationProduction(node))
+    nt.addProduction(createOperationProduction(node, cfg))
     // nt.addProduction(BinaryOpProduction(node.operatorCode, lhs.id!!, rhs.id!!))
 
-    cfg.addNonterminal(node, nt)
+    cfg.addNonterminal(nt)
 }
 
 private fun handleCallExpression(node: CallExpression, cfg: ContextFreeGrammar) {
-    val nt = Nonterminal(node.id!!)
+    val nt = cfg.getOrCreateNonterminal(node.id!!)
 
     if (node.nextDFG.isEmpty()) {
         // e.g. for System.out.println(s) we don't want any productions
@@ -233,31 +239,34 @@ private fun handleCallExpression(node: CallExpression, cfg: ContextFreeGrammar) 
     // for local functions where invokes is known: get grammar info from function
     if (node.invokes.isNotEmpty()) {
         for (func in node.invokes) {
-            nt.addProduction(UnitProduction(func))
+            val funcNT = cfg.getOrCreateNonterminal(func.id)
+            nt.addProduction(UnitProduction(funcNT))
         }
     } else {
-        nt.addProduction(createOperationProduction(node))
+        nt.addProduction(createOperationProduction(node, cfg))
     }
 
-    cfg.addNonterminal(node, nt)
+    cfg.addNonterminal(nt)
 }
 
 private fun handleFunctionDeclaration(node: FunctionDeclaration, cfg: ContextFreeGrammar) {
-    val nt = Nonterminal(node.id!!)
+    val nt = cfg.getOrCreateNonterminal(node.id!!)
 
     if (node.prevDFG.isEmpty()) {
         return
     }
-    for (data_source in node.prevDFG) {
-        nt.addProduction(UnitProduction(data_source))
+    for (dataSource in node.prevDFG) {
+        val dataSourceNT = cfg.getOrCreateNonterminal(dataSource.id)
+        nt.addProduction(UnitProduction(dataSourceNT))
     }
-    cfg.addNonterminal(node, nt)
+    cfg.addNonterminal(nt)
 }
 
 private fun handleReturnStatement(node: ReturnStatement, cfg: ContextFreeGrammar) {
     if (node.returnValue != null) {
-        val nt = Nonterminal(node.id!!)
-        nt.addProduction(UnitProduction(node.returnValue))
-        cfg.addNonterminal(node, nt)
+        val nt = cfg.getOrCreateNonterminal(node.id!!)
+        val returnValueNT = cfg.getOrCreateNonterminal(node.returnValue.id)
+        nt.addProduction(UnitProduction(returnValueNT))
+        cfg.addNonterminal(nt)
     }
 }

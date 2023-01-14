@@ -32,10 +32,12 @@ import de.fraunhofer.aisec.cpg.graph.statements.expressions.CallExpression
 import de.fraunhofer.aisec.cpg.helper.approximations.CharSet
 import java.lang.IllegalStateException
 
-fun createOperationProduction(node: CallExpression): Production {
+fun createOperationProduction(node: CallExpression, cfg: ContextFreeGrammar): Production {
     if (node.base == null) {
         return TerminalProduction(Terminal.anything())
     }
+    val baseNT = cfg.getOrCreateNonterminal(node.base?.id)
+
     val name = node.name.lowercase()
     if (name in setOf("replace", "trim")) {
         val operation =
@@ -63,21 +65,26 @@ fun createOperationProduction(node: CallExpression): Production {
                 }
                 else -> throw IllegalStateException("Unreachable")
             }
-        return UnaryOpProduction(operation, node.base!!)
+        return UnaryOpProduction(operation, baseNT)
     }
     if (name in setOf("concat")) {
-        return ConcatProduction(node.base!!, node.arguments.first())
+        val argNT = cfg.getOrCreateNonterminal(node.arguments.first().id)
+        return ConcatProduction(baseNT, argNT)
     }
     if (name in setOf("repeat")) {
-        return UnaryOpProduction(Repeat(node, node.arguments.first()), node.base!!)
+        return UnaryOpProduction(Repeat(node, node.arguments.first()), baseNT)
     }
     return TerminalProduction(Terminal.anything())
 }
 
-fun createOperationProduction(node: BinaryOperator): Production {
+fun createOperationProduction(node: BinaryOperator, cfg: ContextFreeGrammar): Production {
     when (node.operatorCode) {
         "+",
-        "+=" -> return ConcatProduction(node.lhs!!, node.rhs!!)
+        "+=" -> {
+            val lhsNT = cfg.getOrCreateNonterminal(node.lhs.id)
+            val rhsNT = cfg.getOrCreateNonterminal(node.rhs.id)
+            return ConcatProduction(lhsNT, rhsNT)
+        }
         // not possible in Java, just to show that the Operations don't depend on whether they come
         // from a Call or an Operator
         "*" -> {
@@ -85,7 +92,7 @@ fun createOperationProduction(node: BinaryOperator): Production {
                 if (node.lhs?.type?.typeName?.lowercase()?.contains("int") == true)
                     arrayOf(node.lhs, node.rhs)
                 else arrayOf(node.rhs, node.lhs)
-            return UnaryOpProduction(Repeat(node, amount), arg!!)
+            return UnaryOpProduction(Repeat(node, amount), cfg.getOrCreateNonterminal(arg.id))
         }
     }
     return TerminalProduction(Terminal.anything())
