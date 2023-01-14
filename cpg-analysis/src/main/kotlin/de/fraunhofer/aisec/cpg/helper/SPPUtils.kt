@@ -29,6 +29,8 @@ import de.fraunhofer.aisec.cpg.analysis.ValueEvaluator
 import de.fraunhofer.aisec.cpg.graph.Node
 import de.fraunhofer.aisec.cpg.graph.statements.expressions.Expression
 import de.fraunhofer.aisec.cpg.graph.types.Type
+import de.fraunhofer.aisec.cpg.helper.approximations.CharSet
+import de.fraunhofer.aisec.cpg.helper.approximations.SetCharSet
 
 fun Node?.isNumber(): Boolean {
     if (this is Expression) {

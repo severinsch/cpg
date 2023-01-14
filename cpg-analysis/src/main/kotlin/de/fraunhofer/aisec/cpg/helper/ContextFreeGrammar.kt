@@ -27,6 +27,8 @@ package de.fraunhofer.aisec.cpg.helper
 
 import de.fraunhofer.aisec.cpg.graph.Node
 import de.fraunhofer.aisec.cpg.graph.types.Type
+import de.fraunhofer.aisec.cpg.helper.approximations.CharSet
+import de.fraunhofer.aisec.cpg.helper.approximations.SetCharSet
 
 /*
     this interface structure groups productions in groups to allow the following features

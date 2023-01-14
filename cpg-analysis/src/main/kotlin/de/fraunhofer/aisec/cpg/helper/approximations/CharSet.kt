@@ -23,7 +23,7 @@
  *                    \______/ \__|       \______/
  *
  */
-package de.fraunhofer.aisec.cpg.helper
+package de.fraunhofer.aisec.cpg.helper.approximations
 
 import kotlin.collections.Collection
 

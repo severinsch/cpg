@@ -25,6 +25,8 @@
  */
 package de.fraunhofer.aisec.cpg.helper
 
+import de.fraunhofer.aisec.cpg.helper.approximations.CharSet
+import de.fraunhofer.aisec.cpg.helper.approximations.SetCharSet
 import kotlin.test.*
 import org.junit.jupiter.api.TestInstance
 

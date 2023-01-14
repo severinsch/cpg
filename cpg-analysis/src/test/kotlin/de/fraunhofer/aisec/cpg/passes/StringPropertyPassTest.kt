@@ -34,6 +34,7 @@ import de.fraunhofer.aisec.cpg.graph.statements.CompoundStatement
 import de.fraunhofer.aisec.cpg.graph.statements.ForStatement
 import de.fraunhofer.aisec.cpg.graph.statements.expressions.DeclaredReferenceExpression
 import de.fraunhofer.aisec.cpg.helper.*
+import de.fraunhofer.aisec.cpg.helper.approximations.CharSetApproximation
 import de.fraunhofer.aisec.cpg.passes.StringPropertyPass.*
 import java.nio.file.Path
 import kotlin.test.assertEquals

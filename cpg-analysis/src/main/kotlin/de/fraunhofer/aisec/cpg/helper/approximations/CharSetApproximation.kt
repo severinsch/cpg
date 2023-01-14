@@ -23,8 +23,9 @@
  *                    \______/ \__|       \______/
  *
  */
-package de.fraunhofer.aisec.cpg.helper
+package de.fraunhofer.aisec.cpg.helper.approximations
 
+import de.fraunhofer.aisec.cpg.helper.*
 import java.util.*
 
 class CharSetApproximation(private val grammar: ContextFreeGrammar) {
