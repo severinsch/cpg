@@ -28,7 +28,7 @@ package de.fraunhofer.aisec.cpg.helper
 import de.fraunhofer.aisec.cpg.graph.types.Type
 import de.fraunhofer.aisec.cpg.helper.approximations.CharSet
 import de.fraunhofer.aisec.cpg.helper.approximations.SetCharSet
-
+import kotlin.math.max
 /*
     this interface structure groups productions in groups to allow the following features
 
@@ -106,6 +106,11 @@ class Nonterminal(var id: Long, val productions: MutableSet<Production> = mutabl
     override fun equals(other: Any?): Boolean {
         return other is Nonterminal && this.id == other.id
     }
+
+    fun replaceProductions(newProds: MutableSet<Production>) {
+        productions.clear()
+        productions.addAll(newProds)
+    }
 }
 
 class Terminal(val regex: Regex, val charset: CharSet) {
@@ -126,20 +131,27 @@ class Terminal(val regex: Regex, val charset: CharSet) {
     )
 }
 
-class ContextFreeGrammar(var nonterminals: HashMap<Long, Nonterminal> = hashMapOf()) {
+class ContextFreeGrammar(private val nonterminals: HashMap<Long, Nonterminal> = hashMapOf()) {
+    private var maxId = nonterminals.keys.max()
 
     fun clear() {
         nonterminals.clear()
     }
 
+    fun getAllNonterminals(): MutableCollection<Nonterminal> {
+        return nonterminals.values
+    }
+
     fun addNonterminal(nt: Nonterminal) {
+        maxId = max(maxId, nt.id)
         nonterminals.putIfAbsent(nt.id, nt)
     }
 
     fun getOrCreateNonterminal(id: Long?): Nonterminal {
         // if id not present, adds new Nonterminal and returns it
         // if id present returns value
-        return nonterminals.computeIfAbsent(id!!) { k -> Nonterminal(k) }
+        maxId = max(maxId, id!!)
+        return nonterminals.computeIfAbsent(id) { k -> Nonterminal(k) }
     }
 
     fun getSuccessorsFor(nt: Nonterminal): Iterable<Nonterminal> {
@@ -160,13 +172,13 @@ class ContextFreeGrammar(var nonterminals: HashMap<Long, Nonterminal> = hashMapO
                     is TerminalProduction -> {}
                     is UnitProduction -> {
                         // for nt -> B adds nt to predecessors[B]
-                        predecessors.compute(nonterminals[prod.target1.id]!!) { _, preds ->
+                        predecessors.compute(prod.target1) { _, preds ->
                             preds?.plus(nt)?.toMutableSet() ?: mutableSetOf(nt)
                         }
                     }
                     is UnaryOpProduction -> {
                         // for nt -> op(B) adds nt to predecessors[B]
-                        predecessors.compute(nonterminals[prod.target1.id]!!) { _, preds ->
+                        predecessors.compute(prod.target1) { _, preds ->
                             preds?.plus(nt)?.toMutableSet() ?: mutableSetOf(nt)
                         }
                     }
@@ -174,8 +186,8 @@ class ContextFreeGrammar(var nonterminals: HashMap<Long, Nonterminal> = hashMapO
                         // for nt -> op(X, Y) adds nt to predecessors[X] and predecessors[Y]
                         for (x in
                             listOfNotNull(
-                                nonterminals[prod.target1.id],
-                                nonterminals[prod.target2.id]
+                                prod.target1,
+                                prod.target2
                             )) {
                             predecessors.compute(x) { _, preds ->
                                 preds?.plus(nt)?.toMutableSet() ?: mutableSetOf(nt)
@@ -186,8 +198,8 @@ class ContextFreeGrammar(var nonterminals: HashMap<Long, Nonterminal> = hashMapO
                         // for nt -> X Y adds nt to predecessors[X] and predecessors[Y]
                         for (x in
                             listOfNotNull(
-                                nonterminals[prod.target1.id],
-                                nonterminals[prod.target2.id]
+                                prod.target1,
+                                prod.target2
                             )) {
                             predecessors.compute(x) { _, preds ->
                                 preds?.plus(nt)?.toMutableSet() ?: mutableSetOf(nt)
@@ -244,5 +256,10 @@ class ContextFreeGrammar(var nonterminals: HashMap<Long, Nonterminal> = hashMapO
                 ?: ""
 
         return "digraph grammar {\n$nodes$edges$sccSubgraphs\n}"
+    }
+
+    fun createNewNonterminal(): Nonterminal {
+        maxId++
+        return Nonterminal(maxId)
     }
 }

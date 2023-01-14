@@ -33,7 +33,6 @@ import de.fraunhofer.aisec.cpg.graph.statements.ReturnStatement
 import de.fraunhofer.aisec.cpg.graph.statements.expressions.*
 import de.fraunhofer.aisec.cpg.processing.IVisitor
 import de.fraunhofer.aisec.cpg.processing.strategy.Strategy
-import java.util.*
 import java.util.function.Predicate
 
 fun makeStrategyConditional(
@@ -41,7 +40,7 @@ fun makeStrategyConditional(
     pred: Predicate<Node>
 ): (n: Node) -> Iterator<Node> {
     return { node: Node ->
-        if (pred.test(node)) strat.invoke(node) else Collections.emptyIterator()
+        if (pred.test(node)) strat.invoke(node) else emptyList<Node>().iterator()
     }
 }
 

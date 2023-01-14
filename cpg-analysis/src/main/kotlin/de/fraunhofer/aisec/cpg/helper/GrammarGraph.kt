@@ -25,7 +25,6 @@
  */
 package de.fraunhofer.aisec.cpg.helper
 
-import java.util.*
 import kotlin.math.min
 
 enum class Recursion {
@@ -39,12 +38,32 @@ class Component {
     var recursion: Recursion = Recursion.NONE
     val nonterminals: MutableCollection<Nonterminal> = mutableSetOf()
 
-    fun addNonterminal(nt: Nonterminal) {
-        nonterminals.add(nt)
+    fun determineRecursion() {
+        for (nt in nonterminals) {
+            for (prod in nt.productions) {
+                if (prod is ConcatProduction) {
+                    if (nonterminals.contains(prod.target1)) {
+                        addRecursion(Recursion.LEFT)
+                    }
+                    if (nonterminals.contains(prod.target2)) {
+                       addRecursion(Recursion.RIGHT)
+                    }
+                }
+            }
+        }
     }
 
-    fun determineRecursion() {
-        TODO()
+    fun contains(nt: Nonterminal): Boolean {
+        return nonterminals.contains(nt)
+    }
+
+    private fun addRecursion(r: Recursion) {
+        if (recursion == Recursion.NONE) {
+            recursion = r
+        }
+        if (recursion != r) {
+            recursion = Recursion.BOTH
+        }
     }
 }
 
@@ -53,44 +72,43 @@ class SCC(private val grammar: ContextFreeGrammar) {
     private val componentsForNodes: MutableMap<Nonterminal, Component> = mutableMapOf()
     private val lowlink = mutableMapOf<Nonterminal, Int>()
     private val index = mutableMapOf<Nonterminal, Int>()
-    private val nodes = grammar.nonterminals.values
+    private val nodes = grammar.getAllNonterminals()
 
     /** performs tarjans algorithm to find the strongly connected components of [grammar] */
     init {
-
-        fun visit(node: Nonterminal, c: Int, stack: Stack<Nonterminal>): Int {
-            var count = c
-            lowlink[node] = count
-            index[node] = count
-            count++
-            stack.push(node)
-            for (neighbor in grammar.getSuccessorsFor(node)) {
-                if (!index.contains(neighbor)) {
-                    count = visit(neighbor, count, stack)
-                    lowlink[node] = min(lowlink[neighbor]!!, lowlink[node]!!)
-                } else if (stack.contains(neighbor)) {
-                    lowlink[node] = min(lowlink[node]!!, index[neighbor]!!)
-                }
-            }
-            if (lowlink[node] == index[node]) {
-                val comp = Component()
-                components.add(comp)
-
-                do {
-                    val x = stack.pop()
-                    comp.nonterminal.add(x)
-                    componentsForNodes[x] = comp
-                } while (x != node)
-            }
-            return count
-        }
-
-        val stack = Stack<Nonterminal>()
+        val stack = ArrayDeque<Nonterminal>()
         for (node in nodes) {
             if (!index.contains(node)) {
                 visit(node, 0, stack)
             }
         }
+    }
+
+    private fun visit(currentNT: Nonterminal, c: Int, stack: ArrayDeque<Nonterminal>): Int {
+        var count = c
+        lowlink[currentNT] = count
+        index[currentNT] = count
+        count++
+        stack.addLast(currentNT)
+        for (neighbor in grammar.getSuccessorsFor(currentNT)) {
+            if (!index.contains(neighbor)) {
+                count = visit(neighbor, count, stack)
+                lowlink[currentNT] = min(lowlink[neighbor]!!, lowlink[currentNT]!!)
+            } else if (stack.contains(neighbor)) {
+                lowlink[currentNT] = min(lowlink[currentNT]!!, index[neighbor]!!)
+            }
+        }
+        if (lowlink[currentNT] == index[currentNT]) {
+            val comp = Component()
+            components.add(comp)
+
+            do {
+                val x = stack.removeLast()
+                comp.nonterminals.add(x)
+                componentsForNodes[x] = comp
+            } while (x != currentNT)
+        }
+        return count
     }
 
     fun getComponentForNonterminal(node: Nonterminal): Component? {
@@ -99,7 +117,7 @@ class SCC(private val grammar: ContextFreeGrammar) {
 
     override fun toString(): String {
         return components.joinToString(separator = ";") { c ->
-            "\n{" + c.nonterminal.joinToString(separator = ",") { n -> n.id.toString() } + "}"
+            "\n{" + c.nonterminals.joinToString(separator = ",") { n -> n.id.toString() } + "}"
         }
     }
 }
