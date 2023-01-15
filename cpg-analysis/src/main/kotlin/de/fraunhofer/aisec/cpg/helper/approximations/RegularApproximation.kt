@@ -27,7 +27,10 @@ package de.fraunhofer.aisec.cpg.helper.approximations
 
 import de.fraunhofer.aisec.cpg.helper.*
 
-class RegularApproximation(private val grammar: ContextFreeGrammar) {
+class RegularApproximation(
+    private val grammar: ContextFreeGrammar,
+    private val hotspotIds: Set<Long> = emptySet()
+) {
     private lateinit var scc: SCC
     private val needEpsilonProduction: MutableSet<Nonterminal> = mutableSetOf()
     private val newProductions: MutableMap<Nonterminal, MutableSet<Production>> = mutableMapOf()
@@ -38,32 +41,30 @@ class RegularApproximation(private val grammar: ContextFreeGrammar) {
         scc = SCC(grammar)
         scc.components.forEach { it.determineRecursion() }
 
-
         for (nt in grammar.getAllNonterminals()) {
-            //if (hotspots.contains(nt)) {
-            //    needEpsilonProduction[nt] = true
-            //}
+            if (nt.id in hotspotIds) {
+                needEpsilonProduction.add(nt)
+            }
             for (succ in grammar.getSuccessorsFor(nt)) {
                 if (scc.getComponentForNonterminal(nt) != scc.getComponentForNonterminal(succ)) {
-                   needEpsilonProduction.add(succ)
+                    needEpsilonProduction.add(succ)
                 }
             }
         }
 
-
         for (comp in scc.components) {
-            if(comp.recursion != Recursion.BOTH) {
+            if (comp.recursion != Recursion.BOTH) {
                 continue
             }
 
             // created A' for A
             for (a in comp.nonterminals) {
-                val aPrimed = grammar.createNewNonterminal().also{comp.nonterminals.add(it)}
+                val aPrimed = grammar.createNewNonterminal().also { comp.nonterminals.add(it) }
 
                 primedNonterminals[a] = aPrimed
-                if(needEpsilonProduction.contains(a)) {
+                if (a in needEpsilonProduction) {
                     // TODO use extra epsilon production?
-                    aPrimed.addProduction(TerminalProduction(Terminal("")))
+                    aPrimed.addProduction(TerminalProduction(Terminal.epsilon()))
                 }
             }
 
@@ -82,46 +83,64 @@ class RegularApproximation(private val grammar: ContextFreeGrammar) {
         }
     }
 
+    /** adds [prod] to the [newProductions] for [from] */
     private fun addProduction(from: Nonterminal, prod: Production) {
         newProductions.computeIfAbsent(from) { mutableSetOf() }.add(prod)
     }
-
 
     private fun handleProduction(comp: Component, nt: Nonterminal, prod: Production) {
         when (prod) {
             // A -> B
             is UnitProduction -> {
-                if (comp.contains(prod.target1)){
+                if (prod.target1 in comp) {
                     // A -> B  =>  A -> B, B' -> A'
                     addProduction(from = nt, UnitProduction(prod.target1))
-                    addProduction(from = primedNonterminals[prod.target1]!!, UnitProduction(primedNonterminals[nt]!!))
+                    addProduction(
+                        from = primedNonterminals[prod.target1]!!,
+                        UnitProduction(primedNonterminals[nt]!!)
+                    )
                 } else {
                     // A -> X  =>  A -> X A'
-                    addProduction(from = nt, ConcatProduction(prod.target1, primedNonterminals[nt]!!))
+                    addProduction(
+                        from = nt,
+                        ConcatProduction(prod.target1, primedNonterminals[nt]!!)
+                    )
                 }
             }
             is ConcatProduction -> {
-                when (Pair(comp.contains(prod.target1), comp.contains(prod.target2))) {
+                when (Pair(prod.target1 in comp, prod.target2 in comp)) {
                     Pair(true, true) -> {
                         // A -> B C  =>  A -> B, B' -> C, C' -> A'
                         addProduction(from = nt, UnitProduction(prod.target1))
-                        addProduction(from = primedNonterminals[prod.target1]!!, UnitProduction(prod.target2))
-                        addProduction(from = primedNonterminals[prod.target2]!!, UnitProduction(primedNonterminals[nt]!!))
-
+                        addProduction(
+                            from = primedNonterminals[prod.target1]!!,
+                            UnitProduction(prod.target2)
+                        )
+                        addProduction(
+                            from = primedNonterminals[prod.target2]!!,
+                            UnitProduction(primedNonterminals[nt]!!)
+                        )
                     }
                     Pair(true, false) -> {
                         // A -> B X  =>  A -> B, B' -> X A'
                         addProduction(from = nt, UnitProduction(prod.target1))
-                        addProduction(from = primedNonterminals[prod.target1]!!, ConcatProduction(prod.target2, primedNonterminals[nt]!!))
+                        addProduction(
+                            from = primedNonterminals[prod.target1]!!,
+                            ConcatProduction(prod.target2, primedNonterminals[nt]!!)
+                        )
                     }
                     Pair(false, true) -> {
                         // A -> X B  =>  A -> X B, B' -> A'
                         addProduction(from = nt, ConcatProduction(prod.target1, prod.target2))
-                        addProduction(from = primedNonterminals[prod.target2]!!, UnitProduction(primedNonterminals[nt]!!))
+                        addProduction(
+                            from = primedNonterminals[prod.target2]!!,
+                            UnitProduction(primedNonterminals[nt]!!)
+                        )
                     }
                     Pair(false, false) -> {
                         // A -> X Y  =>  A -> R A', R -> X Y
-                        val newNT = grammar.createNewNonterminal().also{comp.nonterminals.add(it)}
+                        val newNT =
+                            grammar.createNewNonterminal().also { comp.nonterminals.add(it) }
                         addProduction(from = nt, ConcatProduction(newNT, primedNonterminals[nt]!!))
                         addProduction(from = newNT, ConcatProduction(prod.target1, prod.target2))
                     }
@@ -129,19 +148,22 @@ class RegularApproximation(private val grammar: ContextFreeGrammar) {
             }
             is UnaryOpProduction -> {
                 // A -> op(X)  =>  A -> R A', R -> op(X)
-                val newNT = grammar.createNewNonterminal().also{comp.nonterminals.add(it)}
+                val newNT = grammar.createNewNonterminal().also { comp.nonterminals.add(it) }
                 addProduction(from = nt, ConcatProduction(newNT, primedNonterminals[nt]!!))
                 addProduction(from = nt, UnaryOpProduction(prod.op, prod.target1, prod.other_args))
             }
             is BinaryOpProduction -> {
                 // A -> op2(X,Y)  =>  A -> R A', R -> op2(X,Y)
-                val newNT = grammar.createNewNonterminal().also{comp.nonterminals.add(it)}
+                val newNT = grammar.createNewNonterminal().also { comp.nonterminals.add(it) }
                 addProduction(from = nt, ConcatProduction(newNT, primedNonterminals[nt]!!))
-                addProduction(from = nt, BinaryOpProduction(prod.op, prod.target1, prod.target2, prod.other_args))
+                addProduction(
+                    from = nt,
+                    BinaryOpProduction(prod.op, prod.target1, prod.target2, prod.other_args)
+                )
             }
             is TerminalProduction -> {
                 // A -> reg  =>  A -> R A', R -> reg
-                val newNT = grammar.createNewNonterminal().also{comp.nonterminals.add(it)}
+                val newNT = grammar.createNewNonterminal().also { comp.nonterminals.add(it) }
                 addProduction(from = nt, ConcatProduction(newNT, primedNonterminals[nt]!!))
                 addProduction(from = newNT, TerminalProduction(prod.terminal))
             }

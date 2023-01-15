@@ -27,16 +27,18 @@ package de.fraunhofer.aisec.cpg.helper.approximations
 
 import de.fraunhofer.aisec.cpg.helper.*
 import java.util.*
+import kotlin.contracts.ExperimentalContracts
+import kotlin.contracts.contract
 
 class CharSetApproximation(private val grammar: ContextFreeGrammar) {
     // lateinit to delay all computations until approximate is called
     private lateinit var charsets: MutableMap<Nonterminal, CharSet>
-    private lateinit var predecessors: MutableMap<Nonterminal, MutableSet<Nonterminal>>
+    private lateinit var predecessors: Map<Nonterminal, Set<Nonterminal>>
     private lateinit var scc: SCC
 
     fun approximate() {
         charsets = mutableMapOf()
-        predecessors = grammar.getPredecessors()
+        predecessors = grammar.getAllPredecessors()
         // compute strongly connected components
         scc = SCC(grammar)
         // here we use the property that tarjans algorithm for SCC provides topological ordering
@@ -60,10 +62,7 @@ class CharSetApproximation(private val grammar: ContextFreeGrammar) {
                 comp.nonterminals.forEach { nt ->
                     nt.productions.forEach { prod ->
                         if (comp.detectOperationCycle(prod)) {
-                            if (
-                                (prod as OperationProduction).op.priority >
-                                    (maxOp?.priority ?: Int.MIN_VALUE)
-                            ) {
+                            if (prod.op.priority > (maxOp?.priority ?: Int.MIN_VALUE)) {
                                 maxNT = nt
                                 maxProd = prod
                                 maxOp = prod.op
@@ -87,6 +86,12 @@ class CharSetApproximation(private val grammar: ContextFreeGrammar) {
         }
     }
 
+    // TODO check this :( JSA vs paper
+    /**
+     * Replaces the given [OperationProduction] A -> op(B) with the [TerminalProduction] A ->
+     * (op.transform(B.charset))*. Assumes that there is a [CharSet] present in [charsets] for each
+     * [Nonterminal]
+     */
     private fun replaceOperationProduction(prod: OperationProduction, nt: Nonterminal) {
         val charset: CharSet =
             when (prod) {
@@ -107,29 +112,35 @@ class CharSetApproximation(private val grammar: ContextFreeGrammar) {
         nt.productions.add(TerminalProduction(terminal))
     }
 
-    // TODO maybe add contract for type inference
+    /**
+     * Detects whether the given [Production] is an [OperationProduction] in a cycle in the
+     * [Component].
+     * @return true if [prod] is an [OperationProduction] and part of a cycle, false otherwise
+     */
+    @OptIn(ExperimentalContracts::class)
     private fun Component.detectOperationCycle(prod: Production): Boolean {
+        contract { returns(true) implies (prod is OperationProduction) }
         return when (prod) {
-            is UnaryOpProduction -> this.nonterminals.contains(prod.target1)
+            is UnaryOpProduction -> prod.target1 in this.nonterminals
             is BinaryOpProduction ->
-                this.nonterminals.contains(prod.target1) || this.nonterminals.contains(prod.target2)
+                prod.target1 in this.nonterminals || prod.target2 in this.nonterminals
             else -> false
         }
     }
 
     /**
-     * Finds charsets for all nonterminals in the given component, assuming that its successors have
-     * been processed.
+     * Finds the [CharSet] for each [Nonterminal] in the given [component], assuming that its
+     * successors have been processed.
      */
     private fun findCharSets(component: Component) {
         // TODO maybe reset charsets for all nonterminals in component?
         // fixpoint iteration, within this component
-        val worklist: SortedSet<Nonterminal> = TreeSet(component.nonterminals)
+        val worklist = component.nonterminals.toSortedSet()
         while (!worklist.isEmpty()) {
             val n = worklist.first()
             worklist.remove(n)
             if (updateCharset(n, charsets)) {
-                for (m in predecessors.getOrDefault(n, emptyList())) {
+                for (m in predecessors.getOrDefault(n, emptySet())) {
                     if (scc.getComponentForNonterminal(m) === component) {
                         worklist.add(m)
                     }
@@ -138,7 +149,11 @@ class CharSetApproximation(private val grammar: ContextFreeGrammar) {
         }
     }
 
-    /** Updates charset according to productions. Returns true if any changes. */
+    /**
+     * Updates the [CharSet] corresponding to [nt] in [charsets] according to the productions of
+     * [nt].
+     * @return true if [nt]'s [CharSet] changed, false otherwise
+     */
     private fun updateCharset(
         nt: Nonterminal,
         charsets: MutableMap<Nonterminal, CharSet>
@@ -168,9 +183,8 @@ class CharSetApproximation(private val grammar: ContextFreeGrammar) {
                 )
             }
             is ConcatProduction -> {
-                charsets
-                    .getOrDefault(prod.target1, CharSet.empty())
-                    .union(charsets.getOrDefault(prod.target2, CharSet.empty()))
+                charsets.getOrDefault(prod.target1, CharSet.empty()) union
+                    charsets.getOrDefault(prod.target2, CharSet.empty())
             }
         }
     }

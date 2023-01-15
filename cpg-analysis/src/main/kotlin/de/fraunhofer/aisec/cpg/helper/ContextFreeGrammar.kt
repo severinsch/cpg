@@ -29,6 +29,7 @@ import de.fraunhofer.aisec.cpg.graph.types.Type
 import de.fraunhofer.aisec.cpg.helper.approximations.CharSet
 import de.fraunhofer.aisec.cpg.helper.approximations.SetCharSet
 import kotlin.math.max
+
 /*
     this interface structure groups productions in groups to allow the following features
 
@@ -49,35 +50,41 @@ import kotlin.math.max
 
 sealed interface Production
 
+/** A production with one target [Nonterminal] on the right hand side. */
 sealed interface UnaryProduction : Production {
     val target1: Nonterminal
 }
 
+/** A production with two target [Nonterminal]s on the right hand side. */
 sealed interface BinaryProduction : Production {
     val target1: Nonterminal
     val target2: Nonterminal
 }
 
+/**
+ * A production with an associated [Operation] that is applied to the [Nonterminal](s) on the right
+ * hand side.
+ */
 sealed interface OperationProduction : Production {
     val op: Operation
 }
 
-// A -> "abc"
+/** A production of type X -> [Terminal] */
 class TerminalProduction(val terminal: Terminal) : Production {
     // constructor(string_literal: String) : this(Regex.fromLiteral(string_literal))
 }
 
-// X -> Y
+/** A production of type X -> Y. */
 class UnitProduction(override val target1: Nonterminal) : UnaryProduction
 
-// X -> op(Y)
+/** A production of type X -> op(Y). */
 class UnaryOpProduction(
     override val op: Operation,
     override val target1: Nonterminal,
     var other_args: List<Long> = emptyList(),
 ) : OperationProduction, UnaryProduction
 
-// X -> op(Y, Z)
+/** A production of type X -> op(Y, Z). */
 class BinaryOpProduction(
     override val op: Operation,
     override val target1: Nonterminal,
@@ -85,11 +92,11 @@ class BinaryOpProduction(
     var other_args: List<Long> = emptyList()
 ) : OperationProduction, BinaryProduction
 
-// X -> Y Z
+/** A production of type X -> Y Z. */
 class ConcatProduction(override val target1: Nonterminal, override val target2: Nonterminal) :
     BinaryProduction
 
-class Nonterminal(var id: Long, val productions: MutableSet<Production> = mutableSetOf()) :
+class Nonterminal(val id: Long, val productions: MutableSet<Production> = mutableSetOf()) :
     Comparable<Nonterminal> {
     fun addProduction(production: Production) {
         productions.add(production)
@@ -119,6 +126,10 @@ class Terminal(val regex: Regex, val charset: CharSet) {
         fun anything(): Terminal {
             return Terminal(Regex(".*"), CharSet.sigma())
         }
+
+        fun epsilon(): Terminal {
+            return Terminal(Regex(""), CharSet.empty())
+        }
     }
 
     constructor(type: Type) : this(getRegexForNodeType(type), getCharsetForNodeType(type))
@@ -132,7 +143,7 @@ class Terminal(val regex: Regex, val charset: CharSet) {
 }
 
 class ContextFreeGrammar(private val nonterminals: HashMap<Long, Nonterminal> = hashMapOf()) {
-    private var maxId = nonterminals.keys.max()
+    private var maxId = nonterminals.keys.maxOrNull() ?: -1
 
     fun clear() {
         nonterminals.clear()
@@ -142,18 +153,33 @@ class ContextFreeGrammar(private val nonterminals: HashMap<Long, Nonterminal> = 
         return nonterminals.values
     }
 
+    /**
+     * Adds the given [Nonterminal] to the grammar if there is no existing [Nonterminal] with the
+     * same id.
+     */
     fun addNonterminal(nt: Nonterminal) {
         maxId = max(maxId, nt.id)
         nonterminals.putIfAbsent(nt.id, nt)
     }
 
+    /**
+     * Returns the [Nonterminal] associated with the passed [id] if it exists. If it doesn't exist,
+     * a new [Nonterminal] with the given [id] is added to the grammar and returned.
+     * @param id Assumes id is not null to limit the amount of non-null assertions when calling the
+     * function
+     * @return the existing [Nonterminal] or the newly created [Nonterminal]
+     */
     fun getOrCreateNonterminal(id: Long?): Nonterminal {
-        // if id not present, adds new Nonterminal and returns it
-        // if id present returns value
         maxId = max(maxId, id!!)
+        // if id is not present, adds new Nonterminal and returns it
+        // if id is present returns value
         return nonterminals.computeIfAbsent(id) { k -> Nonterminal(k) }
     }
 
+    /**
+     * Finds the successors for the given [Nonterminal].
+     * @return an [Iterable] containg all successors of [nt]
+     */
     fun getSuccessorsFor(nt: Nonterminal): Iterable<Nonterminal> {
         return nt.productions.flatMap { p ->
             when (p) {
@@ -164,48 +190,27 @@ class ContextFreeGrammar(private val nonterminals: HashMap<Long, Nonterminal> = 
         }
     }
 
-    fun getPredecessors(): MutableMap<Nonterminal, MutableSet<Nonterminal>> {
+    /**
+     * Finds the predecessors for each [Nonterminal] in the grammar.
+     * @return a mapping from each [Nonterminal] to its predecessors
+     */
+    fun getAllPredecessors(): Map<Nonterminal, Set<Nonterminal>> {
         val predecessors = mutableMapOf<Nonterminal, MutableSet<Nonterminal>>()
         for (nt in nonterminals.values) {
             for (prod in nt.productions) {
                 when (prod) {
+                    is UnaryProduction -> {
+                        // for nt -> B, nt -> op(B) adds nt to predecessors[B]
+                        predecessors.computeIfAbsent(prod.target1) { mutableSetOf() }.add(nt)
+                    }
+                    is BinaryProduction -> {
+                        // for nt -> X Y, nt -> op(X, Y) adds nt to predecessors[X] and
+                        // predecessors[Y]
+                        for (x in listOfNotNull(prod.target1, prod.target2)) {
+                            predecessors.computeIfAbsent(x) { mutableSetOf() }.add(nt)
+                        }
+                    }
                     is TerminalProduction -> {}
-                    is UnitProduction -> {
-                        // for nt -> B adds nt to predecessors[B]
-                        predecessors.compute(prod.target1) { _, preds ->
-                            preds?.plus(nt)?.toMutableSet() ?: mutableSetOf(nt)
-                        }
-                    }
-                    is UnaryOpProduction -> {
-                        // for nt -> op(B) adds nt to predecessors[B]
-                        predecessors.compute(prod.target1) { _, preds ->
-                            preds?.plus(nt)?.toMutableSet() ?: mutableSetOf(nt)
-                        }
-                    }
-                    is BinaryOpProduction -> {
-                        // for nt -> op(X, Y) adds nt to predecessors[X] and predecessors[Y]
-                        for (x in
-                            listOfNotNull(
-                                prod.target1,
-                                prod.target2
-                            )) {
-                            predecessors.compute(x) { _, preds ->
-                                preds?.plus(nt)?.toMutableSet() ?: mutableSetOf(nt)
-                            }
-                        }
-                    }
-                    is ConcatProduction -> {
-                        // for nt -> X Y adds nt to predecessors[X] and predecessors[Y]
-                        for (x in
-                            listOfNotNull(
-                                prod.target1,
-                                prod.target2
-                            )) {
-                            predecessors.compute(x) { _, preds ->
-                                preds?.plus(nt)?.toMutableSet() ?: mutableSetOf(nt)
-                            }
-                        }
-                    }
                 }
             }
         }

@@ -42,18 +42,18 @@ class Component {
         for (nt in nonterminals) {
             for (prod in nt.productions) {
                 if (prod is ConcatProduction) {
-                    if (nonterminals.contains(prod.target1)) {
+                    if (prod.target1 in nonterminals) {
                         addRecursion(Recursion.LEFT)
                     }
-                    if (nonterminals.contains(prod.target2)) {
-                       addRecursion(Recursion.RIGHT)
+                    if (prod.target2 in nonterminals) {
+                        addRecursion(Recursion.RIGHT)
                     }
                 }
             }
         }
     }
 
-    fun contains(nt: Nonterminal): Boolean {
+    operator fun contains(nt: Nonterminal): Boolean {
         return nonterminals.contains(nt)
     }
 
@@ -78,7 +78,7 @@ class SCC(private val grammar: ContextFreeGrammar) {
     init {
         val stack = ArrayDeque<Nonterminal>()
         for (node in nodes) {
-            if (!index.contains(node)) {
+            if (node !in index) {
                 visit(node, 0, stack)
             }
         }
@@ -91,10 +91,10 @@ class SCC(private val grammar: ContextFreeGrammar) {
         count++
         stack.addLast(currentNT)
         for (neighbor in grammar.getSuccessorsFor(currentNT)) {
-            if (!index.contains(neighbor)) {
+            if (neighbor !in index) {
                 count = visit(neighbor, count, stack)
                 lowlink[currentNT] = min(lowlink[neighbor]!!, lowlink[currentNT]!!)
-            } else if (stack.contains(neighbor)) {
+            } else if (neighbor in stack) {
                 lowlink[currentNT] = min(lowlink[currentNT]!!, index[neighbor]!!)
             }
         }

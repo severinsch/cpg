@@ -100,9 +100,9 @@ fun createOperationProduction(node: BinaryOperator, cfg: ContextFreeGrammar): Pr
 
 abstract class Operation(val priority: Int) {
     // STUBS, types will change
-    open fun charsetTransformation(cs: CharSet): CharSet = TODO()
+    open fun charsetTransformation(cs: CharSet): CharSet = cs
     // TODO maybe replace with subclasses for BinaryOperations
-    open fun charsetTransformation(cs1: CharSet, cs2: CharSet): CharSet = TODO()
+    open fun charsetTransformation(cs1: CharSet, cs2: CharSet): CharSet = cs1 union cs2
     open fun regularApproximation(regex: Regex): Regex = TODO()
     abstract override fun toString(): String
 }
@@ -120,7 +120,7 @@ class ReplaceNoneKnown(val node: Node, val old: Node, val new: Node) : Operation
 class ReplaceBothKnown(val old: Char, val new: Char) : Operation(4) {
 
     override fun charsetTransformation(cs: CharSet): CharSet {
-        if (cs.contains(old)) {
+        if (old in cs) {
             // TODO does this make a copy
             val newCS = cs
             newCS.remove(old)
@@ -139,7 +139,7 @@ class ReplaceBothKnown(val old: Char, val new: Char) : Operation(4) {
 class ReplaceOldKnown(val old: Char, val new: Node) : Operation(3) {
 
     override fun charsetTransformation(cs: CharSet): CharSet {
-        if (cs.contains(old)) {
+        if (old in cs) {
             return CharSet.sigma()
         }
         return cs

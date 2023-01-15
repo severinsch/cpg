@@ -38,7 +38,7 @@ sealed interface CharSet {
         }
     }
 
-    fun contains(c: Char): Boolean
+    operator fun contains(c: Char): Boolean
     infix fun union(other: CharSet): CharSet =
         when (other) {
             is SigmaCharSet -> union(other)
@@ -59,13 +59,14 @@ sealed interface CharSet {
     fun add(c: Char)
     fun remove(c: Char)
 
+    /** Returns a [Regex] that accepts the regular language C* for a [CharSet] C. */
     fun toRegexPattern(): String
 }
 
-// a CharSet that represents a Set of form C = Σ \ {c1, c2, c3, ...}
+/** A [CharSet] that represents a set of form C = Σ \ {c1, c2, c3, ...} */
 class SigmaCharSet(val removed: MutableSet<Char> = mutableSetOf()) : CharSet {
 
-    override fun contains(c: Char): Boolean {
+    override operator fun contains(c: Char): Boolean {
         return !removed.contains(c)
     }
 
@@ -111,19 +112,19 @@ class SigmaCharSet(val removed: MutableSet<Char> = mutableSetOf()) : CharSet {
     }
 
     override fun hashCode(): Int {
-        // invert to ensure SigmaCharSet Σ \ {'a'} has a different hash from SetCharSet {'a'}
+        // invert to ensure SigmaCharSet Σ \ {'a'} has a different hash than SetCharSet {'a'}.
         // like equals this doesn't account for SigmaCharSet and SetCharSet that are equal, since
         // this won't occur
         return removed.hashCode().inv()
     }
 }
 
-// a CharSet that represents a Set of form C = {c1, c2, c3, ...}
+/** A [CharSet] that represents a set of form C = {c1, c2, c3, ...} */
 class SetCharSet(val chars: MutableSet<Char> = mutableSetOf()) : CharSet {
 
     constructor(vararg cs: Char) : this(cs.toMutableSet())
 
-    override fun contains(c: Char): Boolean {
+    override operator fun contains(c: Char): Boolean {
         return chars.contains(c)
     }
 
