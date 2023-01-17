@@ -25,132 +25,33 @@
  */
 package de.fraunhofer.aisec.cpg.helper
 
-import de.fraunhofer.aisec.cpg.graph.types.Type
-import de.fraunhofer.aisec.cpg.helper.approximations.CharSet
-import de.fraunhofer.aisec.cpg.helper.approximations.SetCharSet
+import de.fraunhofer.aisec.cpg.helper.approximations.CharSetApproximation
+import de.fraunhofer.aisec.cpg.helper.approximations.RegularApproximation
 import kotlin.math.max
 
-/*
-    this interface structure groups productions in groups to allow the following features
-
-    // exhaustive but still concise, focus on "how many NTs are there on the left hand side" without needing more detail
-    // for this to work, the interfaces need to be sealed
-    when(production) {
-        is TerminalProduction -> ...
-        is UnaryProduction -> <... using target1>
-        is BinaryProduction -> <... using target1 and target2>
-    }
-
-    // easy access to only operation productions, easy to ignore rest
-    when(production) {
-        is OperationProduction -> <do something with op>
-        else -> <do nothing>
-    }
-*/
-
-sealed interface Production
-
-/** A production with one target [Nonterminal] on the right hand side. */
-sealed interface UnaryProduction : Production {
-    val target1: Nonterminal
-}
-
-/** A production with two target [Nonterminal]s on the right hand side. */
-sealed interface BinaryProduction : Production {
-    val target1: Nonterminal
-    val target2: Nonterminal
-}
-
-/**
- * A production with an associated [Operation] that is applied to the [Nonterminal](s) on the right
- * hand side.
- */
-sealed interface OperationProduction : Production {
-    val op: Operation
-}
-
-/** A production of type X -> [Terminal] */
-class TerminalProduction(val terminal: Terminal) : Production {
-    // constructor(string_literal: String) : this(Regex.fromLiteral(string_literal))
-}
-
-/** A production of type X -> Y. */
-class UnitProduction(override val target1: Nonterminal) : UnaryProduction
-
-/** A production of type X -> op(Y). */
-class UnaryOpProduction(
-    override val op: Operation,
-    override val target1: Nonterminal,
-    var other_args: List<Long> = emptyList(),
-) : OperationProduction, UnaryProduction
-
-/** A production of type X -> op(Y, Z). */
-class BinaryOpProduction(
-    override val op: Operation,
-    override val target1: Nonterminal,
-    override val target2: Nonterminal,
-    var other_args: List<Long> = emptyList()
-) : OperationProduction, BinaryProduction
-
-/** A production of type X -> Y Z. */
-class ConcatProduction(override val target1: Nonterminal, override val target2: Nonterminal) :
-    BinaryProduction
-
-class Nonterminal(val id: Long, val productions: MutableSet<Production> = mutableSetOf()) :
-    Comparable<Nonterminal> {
-    fun addProduction(production: Production) {
-        productions.add(production)
-    }
-
-    override fun compareTo(other: Nonterminal): Int {
-        return this.id.compareTo(other.id)
-    }
-
-    override fun hashCode(): Int {
-        return id.hashCode()
-    }
-
-    override fun equals(other: Any?): Boolean {
-        return other is Nonterminal && this.id == other.id
-    }
-
-    fun replaceProductions(newProds: MutableSet<Production>) {
-        productions.clear()
-        productions.addAll(newProds)
-    }
-}
-
-class Terminal(val regex: Regex, val charset: CharSet) {
-
-    companion object {
-        fun anything(): Terminal {
-            return Terminal(Regex(".*"), CharSet.sigma())
-        }
-
-        fun epsilon(): Terminal {
-            return Terminal(Regex(""), CharSet.empty())
-        }
-    }
-
-    constructor(type: Type) : this(getRegexForNodeType(type), getCharsetForNodeType(type))
-
-    constructor(
-        value: Any
-    ) : this(
-        Regex.fromLiteral(value.toString()),
-        SetCharSet(value.toString().toCollection(mutableSetOf()))
-    )
-}
-
-class ContextFreeGrammar(private val nonterminals: HashMap<Long, Nonterminal> = hashMapOf()) {
+class Grammar(private val nonterminals: HashMap<Long, Nonterminal> = hashMapOf()) {
     private var maxId = nonterminals.keys.maxOrNull() ?: -1
 
     fun clear() {
         nonterminals.clear()
     }
 
+    fun approximateToRegularGrammar(hotspotIds: Set<Long> = emptySet()) {
+        CharSetApproximation(this).approximate()
+        RegularApproximation(this, hotspotIds).approximate()
+    }
+
     fun getAllNonterminals(): MutableCollection<Nonterminal> {
         return nonterminals.values
+    }
+
+    /**
+     * Creates a new [Nonterminal] with an unused id and adds it to the grammar.
+     * @return the newly created [Nonterminal]
+     */
+    fun createNewNonterminal(): Nonterminal {
+        maxId++
+        return Nonterminal(maxId).also { nonterminals[maxId] = it }
     }
 
     /**
@@ -261,10 +162,5 @@ class ContextFreeGrammar(private val nonterminals: HashMap<Long, Nonterminal> = 
                 ?: ""
 
         return "digraph grammar {\n$nodes$edges$sccSubgraphs\n}"
-    }
-
-    fun createNewNonterminal(): Nonterminal {
-        maxId++
-        return Nonterminal(maxId)
     }
 }

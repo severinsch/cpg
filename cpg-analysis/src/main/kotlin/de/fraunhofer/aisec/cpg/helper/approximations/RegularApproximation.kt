@@ -28,12 +28,12 @@ package de.fraunhofer.aisec.cpg.helper.approximations
 import de.fraunhofer.aisec.cpg.helper.*
 
 class RegularApproximation(
-    private val grammar: ContextFreeGrammar,
+    private val grammar: Grammar,
     private val hotspotIds: Set<Long> = emptySet()
 ) {
     private lateinit var scc: SCC
     private val needEpsilonProduction: MutableSet<Nonterminal> = mutableSetOf()
-    private val newProductions: MutableMap<Nonterminal, MutableSet<Production>> = mutableMapOf()
+    private val oldProductions: MutableMap<Nonterminal, MutableSet<Production>> = mutableMapOf()
     // mapping from NT A to newly created NT A'
     private val primedNonterminals: MutableMap<Nonterminal, Nonterminal> = mutableMapOf()
 
@@ -56,36 +56,34 @@ class RegularApproximation(
             if (comp.recursion != Recursion.BOTH) {
                 continue
             }
+            val nonterminals = comp.nonterminals.toList()
 
             // created A' for A
-            for (a in comp.nonterminals) {
-                val aPrimed = grammar.createNewNonterminal().also { comp.nonterminals.add(it) }
+            for (a in nonterminals) {
+                oldProductions[a] = a.productions.toMutableSet()
+                a.productions.clear()
 
+                val aPrimed = grammar.createNewNonterminal().also { comp.nonterminals.add(it) }
                 primedNonterminals[a] = aPrimed
                 if (a in needEpsilonProduction) {
-                    // TODO use extra epsilon production?
                     aPrimed.addProduction(TerminalProduction(Terminal.epsilon()))
                 }
             }
 
             // make new productions
-            for (a in comp.nonterminals) {
-                for (prod in a.productions) {
+            for (a in nonterminals) {
+                for (prod in oldProductions[a]!!) {
                     handleProduction(comp, a, prod)
                 }
             }
             comp.recursion = Recursion.RIGHT
         }
 
-        // replace old productions with newly created ones for affected nodes
-        for ((nt, newProds) in newProductions) {
-            nt.replaceProductions(newProds)
-        }
     }
 
-    /** adds [prod] to the [newProductions] for [from] */
+    /** adds [prod] to the productions of [from] */
     private fun addProduction(from: Nonterminal, prod: Production) {
-        newProductions.computeIfAbsent(from) { mutableSetOf() }.add(prod)
+        from.addProduction(prod)
     }
 
     private fun handleProduction(comp: Component, nt: Nonterminal, prod: Production) {

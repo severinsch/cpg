@@ -67,7 +67,7 @@ class Component {
     }
 }
 
-class SCC(private val grammar: ContextFreeGrammar) {
+class SCC(private val grammar: Grammar) {
     val components: MutableList<Component> = mutableListOf()
     private val componentsForNodes: MutableMap<Nonterminal, Component> = mutableMapOf()
     private val lowlink = mutableMapOf<Nonterminal, Int>()
@@ -119,12 +119,5 @@ class SCC(private val grammar: ContextFreeGrammar) {
         return components.joinToString(separator = ";") { c ->
             "\n{" + c.nonterminals.joinToString(separator = ",") { n -> n.id.toString() } + "}"
         }
-    }
-}
-
-class GrammarGraph(val grammar: ContextFreeGrammar) {
-
-    fun getStronglyConnectedComponents(): SCC {
-        return SCC(grammar)
     }
 }

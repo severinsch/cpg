@@ -32,7 +32,7 @@ import de.fraunhofer.aisec.cpg.graph.statements.expressions.CallExpression
 import de.fraunhofer.aisec.cpg.helper.approximations.CharSet
 import java.lang.IllegalStateException
 
-fun createOperationProduction(node: CallExpression, cfg: ContextFreeGrammar): Production {
+fun createOperationProduction(node: CallExpression, cfg: Grammar): Production {
     if (node.base == null) {
         return TerminalProduction(Terminal.anything())
     }
@@ -77,7 +77,7 @@ fun createOperationProduction(node: CallExpression, cfg: ContextFreeGrammar): Pr
     return TerminalProduction(Terminal.anything())
 }
 
-fun createOperationProduction(node: BinaryOperator, cfg: ContextFreeGrammar): Production {
+fun createOperationProduction(node: BinaryOperator, cfg: Grammar): Production {
     when (node.operatorCode) {
         "+",
         "+=" -> {
@@ -98,7 +98,7 @@ fun createOperationProduction(node: BinaryOperator, cfg: ContextFreeGrammar): Pr
     return TerminalProduction(Terminal.anything())
 }
 
-abstract class Operation(val priority: Int) {
+sealed class Operation(val priority: Int) {
     // STUBS, types will change
     open fun charsetTransformation(cs: CharSet): CharSet = cs
     // TODO maybe replace with subclasses for BinaryOperations

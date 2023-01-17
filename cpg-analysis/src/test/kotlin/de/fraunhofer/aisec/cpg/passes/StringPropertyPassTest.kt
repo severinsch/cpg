@@ -90,7 +90,7 @@ class StringPropertyPassTest {
 
     @Test
     fun testSCCCreation() {
-        val g = ContextFreeGrammar()
+        val g = Grammar()
 
         val nts = (0..9).map { Nonterminal(it.toLong()) }
         nts.drop(1).forEach { g.addNonterminal(it) }

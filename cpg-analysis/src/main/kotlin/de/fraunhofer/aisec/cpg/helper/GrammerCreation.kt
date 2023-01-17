@@ -47,8 +47,8 @@ fun makeStrategyConditional(
 val DFG_BACKWARD_NO_NUMBERS =
     makeStrategyConditional(Strategy::DFG_BACKWARD) { n: Node -> !n.isNumber() }
 
-fun createGrammar(node: Node): ContextFreeGrammar {
-    val cfg = ContextFreeGrammar()
+fun createGrammar(node: Node): Grammar {
+    val cfg = Grammar()
     node.accept(
         DFG_BACKWARD_NO_NUMBERS,
         object : IVisitor<Node>() {
@@ -61,7 +61,7 @@ fun createGrammar(node: Node): ContextFreeGrammar {
     return cfg
 }
 
-fun handle(node: Node?, cfg: ContextFreeGrammar) {
+fun handle(node: Node?, cfg: Grammar) {
     println("${node?.id!!}: ${node.name} at ${node.location.toString()}")
     when (node) {
         is ArrayCreationExpression -> TODO()
@@ -76,7 +76,6 @@ fun handle(node: Node?, cfg: ContextFreeGrammar) {
         is CastExpression -> handleDefault(node, cfg)
         is BinaryOperator -> handleBinaryOp(node, cfg)
         is DeclaredReferenceExpression -> handleDeclaredReferenceExpression(node, cfg)
-        is UnaryOperator -> handleUnaryOperator(node, cfg)
         is VariableDeclaration -> handleVariableDeclaration(node, cfg)
         // Other
         // is Assignment -> handleAssignment(node)
@@ -89,7 +88,7 @@ fun handle(node: Node?, cfg: ContextFreeGrammar) {
     }
 }
 
-private fun handleDefault(node: Node, cfg: ContextFreeGrammar) {
+private fun handleDefault(node: Node, cfg: Grammar) {
     println("default handled node ${node.javaClass.name} (id: ${node.id}) at ${node.location}")
     val nt = cfg.getOrCreateNonterminal(node.id!!)
 
@@ -103,7 +102,7 @@ private fun handleDefault(node: Node, cfg: ContextFreeGrammar) {
     cfg.addNonterminal(nt)
 }
 
-private fun handleNewExpression(node: NewExpression, cfg: ContextFreeGrammar) {
+private fun handleNewExpression(node: NewExpression, cfg: Grammar) {
     val nt = cfg.getOrCreateNonterminal(node.id!!)
     for (dataSource in node.prevDFG) {
         println("DATA SOURCE FOR NEW EXPRESSION: $dataSource")
@@ -116,7 +115,7 @@ private fun handleNewExpression(node: NewExpression, cfg: ContextFreeGrammar) {
     cfg.addNonterminal(nt)
 }
 
-private fun handleConstructExpression(node: ConstructExpression, cfg: ContextFreeGrammar) {
+private fun handleConstructExpression(node: ConstructExpression, cfg: Grammar) {
     val nt = cfg.getOrCreateNonterminal(node.id!!)
     // Constructor call of Java Number Wrapper
     if (node.isNumber()) {
@@ -149,10 +148,7 @@ private fun handleConstructExpression(node: ConstructExpression, cfg: ContextFre
     return
 }
 
-private fun handleParamVariableDeclaration(
-    node: ParamVariableDeclaration,
-    cfg: ContextFreeGrammar
-) {
+private fun handleParamVariableDeclaration(node: ParamVariableDeclaration, cfg: Grammar) {
     val nt = cfg.getOrCreateNonterminal(node.id!!)
     if (node.prevDFG.isEmpty() || node.isNumber()) {
         nt.addProduction(TerminalProduction(Terminal(node.type)))
@@ -165,13 +161,13 @@ private fun handleParamVariableDeclaration(
     cfg.addNonterminal(nt)
 }
 
-private fun handleLiteral(node: Literal<*>, cfg: ContextFreeGrammar) {
+private fun handleLiteral(node: Literal<*>, cfg: Grammar) {
     val nt = cfg.getOrCreateNonterminal(node.id!!)
     nt.addProduction(TerminalProduction(Terminal(node.value)))
     cfg.addNonterminal(nt)
 }
 
-private fun handleVariableDeclaration(node: VariableDeclaration, cfg: ContextFreeGrammar) {
+private fun handleVariableDeclaration(node: VariableDeclaration, cfg: Grammar) {
     val nt = cfg.getOrCreateNonterminal(node.id!!)
 
     val initializer = node.initializer
@@ -184,19 +180,7 @@ private fun handleVariableDeclaration(node: VariableDeclaration, cfg: ContextFre
     cfg.addNonterminal(nt)
 }
 
-private fun handleUnaryOperator(node: UnaryOperator, cfg: ContextFreeGrammar) {
-    val nt = cfg.getOrCreateNonterminal(node.id!!)
-
-    TODO()
-    // nt.addProduction(UnaryOpProduction(node.operatorCode, node.input.id!!))
-
-    cfg.addNonterminal(nt)
-}
-
-private fun handleDeclaredReferenceExpression(
-    node: DeclaredReferenceExpression,
-    cfg: ContextFreeGrammar
-) {
+private fun handleDeclaredReferenceExpression(node: DeclaredReferenceExpression, cfg: Grammar) {
 
     val nt = cfg.getOrCreateNonterminal(node.id!!)
     // TODO extend isNumber check (function calls that return int etc) and pull out
@@ -215,7 +199,7 @@ private fun handleDeclaredReferenceExpression(
     cfg.addNonterminal(nt)
 }
 
-private fun handleBinaryOp(node: BinaryOperator, cfg: ContextFreeGrammar) {
+private fun handleBinaryOp(node: BinaryOperator, cfg: Grammar) {
     if (node.isAssignment) {
         // handled by DFG edge from RHS to LHS
         return
@@ -228,7 +212,7 @@ private fun handleBinaryOp(node: BinaryOperator, cfg: ContextFreeGrammar) {
     cfg.addNonterminal(nt)
 }
 
-private fun handleCallExpression(node: CallExpression, cfg: ContextFreeGrammar) {
+private fun handleCallExpression(node: CallExpression, cfg: Grammar) {
     val nt = cfg.getOrCreateNonterminal(node.id!!)
 
     if (node.nextDFG.isEmpty()) {
@@ -248,7 +232,7 @@ private fun handleCallExpression(node: CallExpression, cfg: ContextFreeGrammar) 
     cfg.addNonterminal(nt)
 }
 
-private fun handleFunctionDeclaration(node: FunctionDeclaration, cfg: ContextFreeGrammar) {
+private fun handleFunctionDeclaration(node: FunctionDeclaration, cfg: Grammar) {
     val nt = cfg.getOrCreateNonterminal(node.id!!)
 
     if (node.prevDFG.isEmpty()) {
@@ -261,7 +245,7 @@ private fun handleFunctionDeclaration(node: FunctionDeclaration, cfg: ContextFre
     cfg.addNonterminal(nt)
 }
 
-private fun handleReturnStatement(node: ReturnStatement, cfg: ContextFreeGrammar) {
+private fun handleReturnStatement(node: ReturnStatement, cfg: Grammar) {
     if (node.returnValue != null) {
         val nt = cfg.getOrCreateNonterminal(node.id!!)
         val returnValueNT = cfg.getOrCreateNonterminal(node.returnValue.id)

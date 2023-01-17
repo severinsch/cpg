@@ -30,7 +30,7 @@ import java.util.*
 import kotlin.contracts.ExperimentalContracts
 import kotlin.contracts.contract
 
-class CharSetApproximation(private val grammar: ContextFreeGrammar) {
+class CharSetApproximation(private val grammar: Grammar) {
     // lateinit to delay all computations until approximate is called
     private lateinit var charsets: MutableMap<Nonterminal, CharSet>
     private lateinit var predecessors: Map<Nonterminal, Set<Nonterminal>>
