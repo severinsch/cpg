@@ -45,12 +45,16 @@ class NFA(states: Set<State> = setOf()) : FSM(states) {
          * Recursively compute the ε-closure for the given set of states (i.e., all states reachable
          * by ε-transitions from any of the states in the set)
          */
-        fun getEpsilonClosure(states: MutableSet<State>): Set<State> {
-            for (epsilonEdges in
-                states.map { state -> state.outgoingEdges.filter { edge -> edge.op == EPSILON } }) {
-                states.addAll(getEpsilonClosure(epsilonEdges.map { it.nextState }.toMutableSet()))
+        tailrec fun getEpsilonClosure(states: MutableSet<State>): Set<State> {
+            val newStates =
+                states
+                    .flatMap { state -> state.outgoingEdges.filter { edge -> edge.op == EPSILON } }
+                    .map { it.nextState }
+                    .toMutableSet()
+            if (states.containsAll(newStates)) {
+                return states
             }
-            return states
+            return getEpsilonClosure(states.union(newStates).toMutableSet())
         }
 
         check(states.count { it.isStart } == 1) {
