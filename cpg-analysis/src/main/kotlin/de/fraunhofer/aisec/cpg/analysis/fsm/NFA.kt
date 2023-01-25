@@ -214,6 +214,30 @@ class NFA(states: Set<State> = setOf()) : FSM(states) {
             }
         }
 
+        fun getAllIncomingEdges(state: State): Set<Edge> {
+            return states
+                .filter { it != state }
+                .flatMap { it.outgoingEdges }
+                .filter { it.nextState == state }
+                .toSet()
+        }
+
+        fun getAllOutgoingEdges(state: State): Set<Edge> {
+            return state.outgoingEdges.filter { it.nextState != state }.toSet()
+        }
+
+        fun delgadoHeuristic(state: State): Int {
+            val loopEdge = state.outgoingEdges.find { it.nextState == state }
+            val incomingEdges = getAllIncomingEdges(state)
+            val outgoingEdges = getAllOutgoingEdges(state)
+            val sumIn =
+                incomingEdges.fold(0) { acc, edge -> edge.op.length * outgoingEdges.size + acc }
+            val sumOut =
+                outgoingEdges.fold(0) { acc, edge -> edge.op.length * incomingEdges.size + acc }
+            val rest = (loopEdge?.op?.length ?: 0) * incomingEdges.size * outgoingEdges.size
+            return sumIn + sumOut + rest
+        }
+
         val copy = this.deepCopy()
         val stateSet = copy.states.toMutableSet()
         // We generate a new start state to make the termination a bit easier.
@@ -232,7 +256,9 @@ class NFA(states: Set<State> = setOf()) : FSM(states) {
 
         while (stateSet.isNotEmpty()) {
             val toProcess =
-                stateSet.firstOrNull { it != newStartState && it != newEndState }
+                stateSet
+                    .filter { it != newStartState && it != newEndState }
+                    .minByOrNull { delgadoHeuristic(it) }
                     ?: return newStartState.outgoingEdges.joinToString("|") { "(${it.op})" }
 
             stateSet.remove(toProcess)
