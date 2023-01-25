@@ -78,7 +78,6 @@ class RegularApproximation(
             }
             comp.recursion = Recursion.RIGHT
         }
-
     }
 
     /** adds [prod] to the productions of [from] */

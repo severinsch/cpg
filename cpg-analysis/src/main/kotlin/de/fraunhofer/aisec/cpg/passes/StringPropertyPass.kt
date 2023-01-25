@@ -40,10 +40,10 @@ object StringPropertyHotspots {
         DATABASE
     }
 
-    var hotspots: MutableSet<Expression> = mutableSetOf()
-    var print_hotspots: MutableSet<Expression> = mutableSetOf()
-    var return_hotspots: MutableSet<Expression> = mutableSetOf()
-    var database_hotspots: MutableSet<Expression> = mutableSetOf()
+    val hotspots: MutableSet<Expression> = mutableSetOf()
+    val print_hotspots: MutableSet<Expression> = mutableSetOf()
+    val return_hotspots: MutableSet<Expression> = mutableSetOf()
+    val database_hotspots: MutableSet<Expression> = mutableSetOf()
     fun addHotspot(node: Expression, type: HotspotType) {
         hotspots.add(node)
         when (type) {
@@ -96,7 +96,9 @@ class StringPropertyPass : Pass() {
                 }
                 if (
                     node.fqn?.matches(
-                        Regex("java\\.sql\\.(Statement\\.execute.*|Connection\\.prepare.*)")
+                        Regex(
+                            "java\\.sql\\.(?:(?:Callable|Prepared)?Statement\\.execute.*|Connection\\.prepare.*)"
+                        )
                     ) == true && node.arguments.isNotEmpty()
                 ) {
                     StringPropertyHotspots.addHotspot(

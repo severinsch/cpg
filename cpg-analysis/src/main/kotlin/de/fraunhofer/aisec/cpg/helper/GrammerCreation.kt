@@ -58,6 +58,7 @@ fun createGrammar(node: Node): Grammar {
             }
         }
     )
+    cfg.startNonterminal = cfg.getOrCreateNonterminal(node.id)
     return cfg
 }
 

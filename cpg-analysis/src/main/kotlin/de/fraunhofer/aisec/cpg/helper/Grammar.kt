@@ -31,6 +31,7 @@ import kotlin.math.max
 
 class Grammar(private val nonterminals: HashMap<Long, Nonterminal> = hashMapOf()) {
     private var maxId = nonterminals.keys.maxOrNull() ?: -1
+    var startNonterminal: Nonterminal? = null
 
     fun clear() {
         nonterminals.clear()

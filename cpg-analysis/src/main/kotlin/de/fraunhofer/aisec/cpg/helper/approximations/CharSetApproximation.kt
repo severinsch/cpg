@@ -41,7 +41,12 @@ class CharSetApproximation(private val grammar: Grammar) {
         predecessors = grammar.getAllPredecessors()
         // compute strongly connected components
         scc = SCC(grammar)
-        // here we use the property that tarjans algorithm for SCC provides topological ordering
+        // here we use the property that Tarjan's algorithm for SCCs provides reverse topological
+        // ordering of the components.
+        // This is important because the fixpoint computation in findCharSets assumes that all
+        // successors of the component have been processed.
+        // This in turn is important, because the fixpoint computation uses the updateCharsets
+        // function, which uses the charsets of the successors of the given Nonterminal.
         for (comp in scc.components) {
             findCharSets(comp)
         }
@@ -129,8 +134,8 @@ class CharSetApproximation(private val grammar: Grammar) {
     }
 
     /**
-     * Finds the [CharSet] for each [Nonterminal] in the given [component], assuming that its
-     * successors have been processed.
+     * Finds the [CharSet] for each [Nonterminal] in the given [component], assuming that the
+     * components successors have been processed.
      */
     private fun findCharSets(component: Component) {
         // TODO maybe reset charsets for all nonterminals in component?

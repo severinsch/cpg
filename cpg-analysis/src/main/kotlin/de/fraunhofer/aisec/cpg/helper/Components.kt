@@ -34,19 +34,33 @@ enum class Recursion {
     BOTH
 }
 
+/**
+ * Returns which type of recursion a component containing both productions with recursion type
+ * [this] and [other] has
+ */
+private infix fun Recursion.and(other: Recursion): Recursion {
+    return when {
+        this == Recursion.NONE -> other
+        other == Recursion.NONE -> this
+        this == other -> this
+        this != other -> Recursion.BOTH
+        else -> throw IllegalStateException("This should never happen")
+    }
+}
+
 class Component {
     var recursion: Recursion = Recursion.NONE
     val nonterminals: MutableCollection<Nonterminal> = mutableSetOf()
 
     fun determineRecursion() {
-        for (nt in nonterminals) {
-            for (prod in nt.productions) {
+        nonterminals.forEach { nt ->
+            nt.productions.forEach { prod ->
                 if (prod is ConcatProduction) {
                     if (prod.target1 in nonterminals) {
-                        addRecursion(Recursion.LEFT)
+                        recursion = recursion and Recursion.LEFT
                     }
                     if (prod.target2 in nonterminals) {
-                        addRecursion(Recursion.RIGHT)
+                        recursion = recursion and Recursion.RIGHT
                     }
                 }
             }
@@ -56,25 +70,17 @@ class Component {
     operator fun contains(nt: Nonterminal): Boolean {
         return nonterminals.contains(nt)
     }
-
-    private fun addRecursion(r: Recursion) {
-        if (recursion == Recursion.NONE) {
-            recursion = r
-        }
-        if (recursion != r) {
-            recursion = Recursion.BOTH
-        }
-    }
 }
 
 class SCC(private val grammar: Grammar) {
+    // use list instead of set to preserve topological order provided by Tarjan's algorithm
     val components: MutableList<Component> = mutableListOf()
     private val componentsForNodes: MutableMap<Nonterminal, Component> = mutableMapOf()
     private val lowlink = mutableMapOf<Nonterminal, Int>()
     private val index = mutableMapOf<Nonterminal, Int>()
     private val nodes = grammar.getAllNonterminals()
 
-    /** performs tarjans algorithm to find the strongly connected components of [grammar] */
+    /** performs Tarjan's algorithm to find the strongly connected components of [grammar] */
     init {
         val stack = ArrayDeque<Nonterminal>()
         for (node in nodes) {

@@ -25,6 +25,7 @@
  */
 package de.fraunhofer.aisec.cpg.analysis.fsm
 
+// import de.fraunhofer.aisec.cpg.graph.followNextEOG
 import de.fraunhofer.aisec.cpg.TestUtils
 import de.fraunhofer.aisec.cpg.TranslationManager
 import de.fraunhofer.aisec.cpg.frontends.java.JavaLanguage
@@ -34,10 +35,7 @@ import de.fraunhofer.aisec.cpg.graph.byNameOrNull
 import de.fraunhofer.aisec.cpg.graph.declarations.FunctionDeclaration
 import de.fraunhofer.aisec.cpg.graph.declarations.RecordDeclaration
 import de.fraunhofer.aisec.cpg.graph.declarations.TranslationUnitDeclaration
-import de.fraunhofer.aisec.cpg.graph.followNextEOG
 import de.fraunhofer.aisec.cpg.graph.statements.*
-import de.fraunhofer.aisec.cpg.graph.statements.expressions.CallExpression
-import de.fraunhofer.aisec.cpg.graph.statements.expressions.DeclaredReferenceExpression
 import de.fraunhofer.aisec.cpg.passes.EdgeCachePass
 import de.fraunhofer.aisec.cpg.passes.UnreachableEOGPass
 import java.nio.file.Path
@@ -691,7 +689,7 @@ class ComplexDFAOrderEvaluationTest {
             fsm: DFA,
             interproceduralFlow: Boolean
         ) {
-            val lastNode = fsm.executionTrace.last().cpgNode as CallExpression
+            /* val lastNode = fsm.executionTrace.last().cpgNode as CallExpression
             var baseOfLastNode = getBaseOfNode(lastNode)
             if (baseOfLastNode is DeclaredReferenceExpression) {
                 baseOfLastNode = baseOfLastNode.refersTo
@@ -713,7 +711,7 @@ class ComplexDFAOrderEvaluationTest {
                 log.error(
                     "The DFA did not terminate in an accepted state. interproceduralFlow = $interproceduralFlow"
                 )
-            }
+            }*/
         }
     }
 }

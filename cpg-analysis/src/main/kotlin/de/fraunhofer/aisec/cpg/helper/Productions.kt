@@ -95,8 +95,10 @@ class BinaryOpProduction(
 class ConcatProduction(override val target1: Nonterminal, override val target2: Nonterminal) :
     BinaryProduction
 
+sealed interface Symbol
+
 class Nonterminal(val id: Long, val productions: MutableSet<Production> = mutableSetOf()) :
-    Comparable<Nonterminal> {
+    Comparable<Nonterminal>, Symbol {
     fun addProduction(production: Production) {
         productions.add(production)
     }
@@ -119,7 +121,7 @@ class Nonterminal(val id: Long, val productions: MutableSet<Production> = mutabl
     }
 }
 
-class Terminal(val regex: Regex, val charset: CharSet) {
+class Terminal(val regex: Regex, val charset: CharSet) : Symbol {
 
     companion object {
         fun anything(): Terminal {
