@@ -26,6 +26,7 @@
 package de.fraunhofer.aisec.cpg.helper
 
 import de.fraunhofer.aisec.cpg.helper.approximations.RegularApproximation
+import de.fraunhofer.aisec.cpg.helper.automaton.GrammarToNFA
 import org.junit.jupiter.api.Test
 
 class RegularApproximationTest {
@@ -43,11 +44,11 @@ class RegularApproximationTest {
         // B -> TB A | TB
 
         val g = Grammar()
-        val A = Nonterminal(0)
-        val B = Nonterminal(1)
-        val TA = Nonterminal(2)
-        val TB = Nonterminal(3)
-        val R = Nonterminal(4)
+        val A = Nonterminal(0, label = "A")
+        val B = Nonterminal(1, label = "B")
+        val TA = Nonterminal(2, label = "TA")
+        val TB = Nonterminal(3, label = "TB")
+        val R = Nonterminal(4, label = "R")
 
         TA.addProduction(TerminalProduction(Terminal("a")))
         TB.addProduction(TerminalProduction(Terminal("b")))
@@ -57,9 +58,19 @@ class RegularApproximationTest {
         B.addProduction(UnitProduction(TB))
 
         listOf(A, B, TA, TB, R).forEach { g.addNonterminal(it) }
+        g.startNonterminal = A
+        println("Initial grammar: ${g.printGrammar()}")
+        val scc =
+            SCC(g).also {
+                it.components.forEach { c ->
+                    c.determineRecursion()
+                    println("Comp: ${c.nonterminals}: ${c.recursion}")
+                }
+            }
+        println("Grammar Graph before Approximation:\n${g.toDOT(scc)}")
 
         RegularApproximation(g).approximate()
-        println(g.printGrammar())
+        println("After Regular Approximation: ${g.printGrammar()}")
         // A -> R
         // B -> TB A
         // B -> TB 5
@@ -69,6 +80,12 @@ class RegularApproximationTest {
         // 5 -> 6
         // 6 -> TA 7
         // 7 -> 5
+        println("Grammar Graph:\n${g.toDOT(scc = SCC(g))}")
+
+        val nfa = GrammarToNFA(g).makeFA()
+        println("NFA:\n${nfa.toDotString()}")
+        val pattern = nfa.toRegex()
+        println("Pattern: $pattern")
     }
 
     @Test

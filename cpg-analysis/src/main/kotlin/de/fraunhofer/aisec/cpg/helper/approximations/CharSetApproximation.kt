@@ -113,7 +113,7 @@ class CharSetApproximation(private val grammar: Grammar) {
                 }
             }
         nt.productions.remove(prod)
-        val terminal = Terminal(Regex(charset.toRegexPattern()), charset)
+        val terminal = Terminal(charset.toRegexPattern(), charset, isLiteral = false)
         nt.productions.add(TerminalProduction(terminal))
     }
 

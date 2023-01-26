@@ -41,6 +41,10 @@ class RegularApproximation(
         scc = SCC(grammar)
         scc.components.forEach { it.determineRecursion() }
 
+        if (scc.components.none { it.recursion == Recursion.BOTH }) {
+            return
+        }
+
         for (nt in grammar.getAllNonterminals()) {
             if (nt.id in hotspotIds) {
                 needEpsilonProduction.add(nt)
@@ -63,7 +67,11 @@ class RegularApproximation(
                 oldProductions[a] = a.productions.toMutableSet()
                 a.productions.clear()
 
-                val aPrimed = grammar.createNewNonterminal().also { comp.nonterminals.add(it) }
+                val aPrimed =
+                    grammar
+                        .createNewNonterminal()
+                        .also { comp.nonterminals.add(it) }
+                        .apply { label = "${a.label}'" }
                 primedNonterminals[a] = aPrimed
                 if (a in needEpsilonProduction) {
                     aPrimed.addProduction(TerminalProduction(Terminal.epsilon()))

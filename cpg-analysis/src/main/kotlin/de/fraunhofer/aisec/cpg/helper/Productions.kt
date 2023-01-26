@@ -97,8 +97,11 @@ class ConcatProduction(override val target1: Nonterminal, override val target2: 
 
 sealed interface Symbol
 
-class Nonterminal(val id: Long, val productions: MutableSet<Production> = mutableSetOf()) :
-    Comparable<Nonterminal>, Symbol {
+class Nonterminal(
+    val id: Long,
+    val productions: MutableSet<Production> = mutableSetOf(),
+    var label: String = id.toString()
+) : Comparable<Nonterminal>, Symbol {
     fun addProduction(production: Production) {
         productions.add(production)
     }
@@ -119,26 +122,38 @@ class Nonterminal(val id: Long, val productions: MutableSet<Production> = mutabl
         productions.clear()
         productions.addAll(newProds)
     }
+
+    override fun toString(): String {
+        return label
+    }
 }
 
-class Terminal(val regex: Regex, val charset: CharSet) : Symbol {
+class Terminal(
+    val value: String,
+    val charset: CharSet,
+    val isLiteral: Boolean = true,
+    val isEpsilon: Boolean = false
+) : Symbol {
 
     companion object {
         fun anything(): Terminal {
-            return Terminal(Regex(".*"), CharSet.sigma())
+            return Terminal(".*", CharSet.sigma(), isLiteral = false)
         }
 
         fun epsilon(): Terminal {
-            return Terminal(Regex(""), CharSet.empty())
+            return Terminal("ε", CharSet.empty(), isLiteral = true, isEpsilon = true)
         }
     }
 
-    constructor(type: Type) : this(getRegexForNodeType(type), getCharsetForNodeType(type))
+    constructor(
+        type: Type
+    ) : this(getRegexPatternForNodeType(type), getCharsetForNodeType(type), isLiteral = false)
 
     constructor(
         value: Any
     ) : this(
-        Regex.fromLiteral(value.toString()),
-        SetCharSet(value.toString().toCollection(mutableSetOf()))
+        value.toString(),
+        SetCharSet(value.toString().toCollection(mutableSetOf())),
+        isLiteral = true
     )
 }

@@ -214,26 +214,34 @@ class NFA(states: Set<State> = setOf()) : FSM(states) {
             }
         }
 
-        fun getAllIncomingEdges(state: State): Set<Edge> {
+        // used for delgado heuristic
+        fun getAllIncomingEdges(state: State): List<Edge> {
             return states
                 .filter { it != state }
                 .flatMap { it.outgoingEdges }
                 .filter { it.nextState == state }
-                .toSet()
         }
 
-        fun getAllOutgoingEdges(state: State): Set<Edge> {
-            return state.outgoingEdges.filter { it.nextState != state }.toSet()
+        // used for delgado heuristic
+        fun getAllOutgoingEdges(state: State): List<Edge> {
+            return state.outgoingEdges.filter { it.nextState != state }
         }
 
+        // heuristic described in https://link.springer.com/chapter/10.1007/978-3-540-30500-2_31
+        // despite additional complexity to calculate weight, they show it produces better results
+        // and is faster than without the heuristic
         fun delgadoHeuristic(state: State): Int {
             val loopEdge = state.outgoingEdges.find { it.nextState == state }
             val incomingEdges = getAllIncomingEdges(state)
             val outgoingEdges = getAllOutgoingEdges(state)
             val sumIn =
-                incomingEdges.fold(0) { acc, edge -> edge.op.length * outgoingEdges.size + acc }
+                incomingEdges.fold(0) { acc, edge ->
+                    edge.op.filter { it != 'ε' }.length * outgoingEdges.size + acc
+                }
             val sumOut =
-                outgoingEdges.fold(0) { acc, edge -> edge.op.length * incomingEdges.size + acc }
+                outgoingEdges.fold(0) { acc, edge ->
+                    edge.op.filter { it != 'ε' }.length * incomingEdges.size + acc
+                }
             val rest = (loopEdge?.op?.length ?: 0) * incomingEdges.size * outgoingEdges.size
             return sumIn + sumOut + rest
         }

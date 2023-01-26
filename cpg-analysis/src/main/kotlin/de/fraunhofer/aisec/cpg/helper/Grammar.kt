@@ -122,13 +122,13 @@ class Grammar(private val nonterminals: HashMap<Long, Nonterminal> = hashMapOf()
     fun printGrammar(): String {
         return nonterminals.entries.joinToString(separator = "\n") { (_, nt) ->
             nt.productions.joinToString(separator = "\n") { p ->
-                "${nt.id} -> " +
+                "${nt.label} -> " +
                     when (p) {
-                        is TerminalProduction -> "\"${p.terminal.regex}\""
-                        is UnitProduction -> p.target1.id
-                        is UnaryOpProduction -> "${p.op}(${p.target1.id})"
-                        is BinaryOpProduction -> "${p.op}(${p.target1.id}, ${p.target2.id})"
-                        is ConcatProduction -> "${p.target1.id} ${p.target2.id}"
+                        is TerminalProduction -> "\"${p.terminal.value}\""
+                        is UnitProduction -> p.target1.label
+                        is UnaryOpProduction -> "${p.op}(${p.target1.label})"
+                        is BinaryOpProduction -> "${p.op}(${p.target1.label}, ${p.target2.label})"
+                        is ConcatProduction -> "${p.target1.label} ${p.target2.label}"
                     }
             }
         }
@@ -137,7 +137,7 @@ class Grammar(private val nonterminals: HashMap<Long, Nonterminal> = hashMapOf()
     fun toDOT(scc: SCC? = null): String {
         val nodes =
             nonterminals.values.joinToString(separator = "\n", postfix = "\n") { nt ->
-                "node_${nt.id} [label = \"${nt.id}\"];"
+                "node_${nt.id} [label = \"${nt.label}\"];"
             }
         val edges =
             nonterminals.values.joinToString(separator = "\n", postfix = "\n") { nt ->
@@ -147,7 +147,7 @@ class Grammar(private val nonterminals: HashMap<Long, Nonterminal> = hashMapOf()
                             "node_${nt.id} -> node_${prod.target1.id};\n" +
                                 "node_${nt.id} -> node_${prod.target2.id};"
                         is TerminalProduction ->
-                            "node_${nt.id} -> \"regex${prod.hashCode()}_${prod.terminal.regex}\";"
+                            "node_${nt.id} -> \"regex${prod.hashCode()}_${prod.terminal.value}\";"
                         is UnaryProduction -> "node_${nt.id} -> node_${prod.target1.id};"
                     }
                 }

@@ -60,9 +60,9 @@ fun Node?.isString(): Boolean {
     return false
 }
 
-fun getRegexForNodeType(type: Type): Regex {
+fun getRegexPatternForNodeType(type: Type): String {
     return when (type.typeName) {
-        "java.lang.String" -> Regex(".*")
+        "java.lang.String" -> ".*"
         "java.lang.Integer",
         "java.lang.Long",
         "java.lang.Short",
@@ -70,8 +70,8 @@ fun getRegexForNodeType(type: Type): Regex {
         "byte",
         "short",
         "int",
-        "long" -> Regex("0|(-?[1-9][0-9]*)")
-        else -> Regex(".*")
+        "long" -> "0|(-?[1-9][0-9]*)"
+        else -> ".*"
     }
 }
 
