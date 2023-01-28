@@ -63,59 +63,38 @@ class GrammarToNFA(val grammar: Grammar) {
         return automaton
     }
 
-    private fun addEdge(from: State, to: State, op: String) {
-        val newOp = op.ifEmpty { "ε" }
-
-        automaton.addEdge(from, Edge(newOp, nextState = to))
-    }
-
     private fun addEdge(from: State, to: State, t: Terminal) {
         val edgeVal =
             when {
-                t.isEpsilon -> ""
+                t.isEpsilon -> "ε"
                 t.isLiteral -> Regex.escape(t.value)
                 else -> t.value
             }
-        addEdge(from, to, edgeVal)
+        automaton.addEdge(from, Edge(edgeVal.ifEmpty { "ε" }, nextState = to))
     }
 
-    private fun nederhofMakeFA(state0: State, nts: List<Symbol>, state1: State) {
-        if (nts.isEmpty()) {
-            addEdge(state0, state1, "")
+    private fun nederhofMakeFA(state0: State, alpha: List<Symbol>, state1: State) {
+        // if α = ε, maybe can be combined with next case, part after or is not necessary
+        if (alpha.isEmpty() || alpha.all { it is Terminal && it.isEpsilon }) {
+            addEdge(state0, state1, Terminal.epsilon())
             return
         }
         // if α = a, some a in Σ
-        if (nts.size == 1 && nts.first() is Terminal) {
-            addEdge(state0, state1, nts.first() as Terminal)
+        if (alpha.size == 1 && alpha.first() is Terminal) {
+            addEdge(state0, state1, alpha.first() as Terminal)
             return
         }
-        // test
-        if (
-            nts.size == 1 &&
-                (nts.first() as Nonterminal).productions.size == 1 &&
-                (nts.first() as Nonterminal).productions.first() is TerminalProduction
-        ) {
-            addEdge(
-                state0,
-                state1,
-                ((nts.first() as Nonterminal).productions.first() as TerminalProduction).terminal
-            )
-            return
-        }
-
         // if α = Xβ, some X in V, β in V* such that |β| > 0
-        if (nts.size > 1) {
+        if (alpha.size > 1) {
             val q = automaton.addState()
-            val X = nts.first()
-            val beta = nts.drop(1)
+            val X = alpha.first()
+            val beta = alpha.drop(1)
             nederhofMakeFA(state0, listOf(X), q)
             nederhofMakeFA(q, beta, state1)
             return
         }
         // α = single Nonterminal
-        // TODO different definiton of recursive Nonterminals, maybe change SCC to exclude
-        // components with only one element (if element has no loop to itself?)
-        val A = nts.first() as Nonterminal
+        val A = alpha.first() as Nonterminal
         val comp = scc.getComponentForNonterminal(A)
         if (
             comp != null &&
@@ -153,11 +132,10 @@ class GrammarToNFA(val grammar: Grammar) {
                             nederhofMakeFA(ntStates[D]!!, rest, ntStates[C]!!)
                         }
                     }
-                    // let Δ = Δ U {(qA, ε, q1)}
-                    addEdge(ntStates[A]!!, state1, "")
                 }
+                // let Δ = Δ U {(qA, ε, q1)}
+                addEdge(ntStates[A]!!, state1, Terminal.epsilon())
             } else { // recursion type RIGHT
-                // "the converse of the then part"???
                 for (C in comp.nonterminals) {
                     for (prod in C.productions) {
                         val allSymbols = prod.getAllTargetSymbols()
@@ -167,7 +145,7 @@ class GrammarToNFA(val grammar: Grammar) {
                                 X is Terminal || (X is Nonterminal && !comp.contains(X))
                             }
                         ) {
-                            nederhofMakeFA(state0, allSymbols, ntStates[C]!!)
+                            nederhofMakeFA(ntStates[C]!!, allSymbols, state1)
                         }
 
                         val D = allSymbols.last()
@@ -180,15 +158,14 @@ class GrammarToNFA(val grammar: Grammar) {
                                     X is Terminal || (X is Nonterminal && !comp.contains(X))
                                 }
                         ) {
-                            nederhofMakeFA(ntStates[D]!!, rest, ntStates[C]!!)
+                            nederhofMakeFA(ntStates[C]!!, rest, ntStates[D]!!)
                         }
                     }
-                    // let Δ = Δ U {(qA, ε, q1)}
-                    addEdge(ntStates[A]!!, state1, "")
                 }
+                // let Δ = Δ U {(qA, ε, q1)}
+                addEdge(state0, ntStates[A]!!, Terminal.epsilon())
             }
         } else { // A is not recursive
-            println("A not recursive: A = ${A.id}")
             for (prod in A.productions) {
                 nederhofMakeFA(state0, prod.getAllTargetSymbols(), state1)
             }
