@@ -27,15 +27,19 @@ package de.fraunhofer.aisec.cpg.helper.approximations
 
 import de.fraunhofer.aisec.cpg.helper.*
 
-class RegularApproximation(
-    private val grammar: Grammar,
-    private val hotspotIds: Set<Long> = emptySet()
-) {
+class RegularApproximation(private val grammar: Grammar, _hotspotIds: Set<Long> = emptySet()) {
+    private val hotspotIds: MutableSet<Long> = _hotspotIds.toMutableSet()
     private lateinit var scc: SCC
     private val needEpsilonProduction: MutableSet<Nonterminal> = mutableSetOf()
     private val oldProductions: MutableMap<Nonterminal, MutableSet<Production>> = mutableMapOf()
     // mapping from NT A to newly created NT A'
     private val primedNonterminals: MutableMap<Nonterminal, Nonterminal> = mutableMapOf()
+
+    init {
+        if (grammar.startNonterminal != null) {
+            hotspotIds.add(grammar.startNonterminal!!.id)
+        }
+    }
 
     fun approximate() {
         scc = SCC(grammar)

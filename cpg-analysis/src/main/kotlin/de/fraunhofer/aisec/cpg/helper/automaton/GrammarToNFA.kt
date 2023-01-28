@@ -73,6 +73,10 @@ class GrammarToNFA(val grammar: Grammar) {
         automaton.addEdge(from, Edge(edgeVal.ifEmpty { "ε" }, nextState = to))
     }
 
+    // Nederhof FA automaton construction from
+    // https://mjn.host.cs.st-andrews.ac.uk/publications/2000d.pdf
+    // version for recursion == right not present in paper, but this adaption of the left recursion
+    // case seems to work
     private fun nederhofMakeFA(state0: State, alpha: List<Symbol>, state1: State) {
         // if α = ε, maybe can be combined with next case, part after or is not necessary
         if (alpha.isEmpty() || alpha.all { it is Terminal && it.isEpsilon }) {
@@ -98,7 +102,7 @@ class GrammarToNFA(val grammar: Grammar) {
         val comp = scc.getComponentForNonterminal(A)
         if (
             comp != null &&
-                (comp.nonterminals.size != 1 ||
+                (comp.nonterminals.size > 1 ||
                     // loop to itself counted as existing Ni in Nederhof paper
                     A.productions.any { prod -> prod.getAllTargetSymbols().contains(A) })
         ) { // α must consist of a single nonterminal
@@ -106,63 +110,49 @@ class GrammarToNFA(val grammar: Grammar) {
             // for each B e Ni do let qB = fresh_state end; in map to access for each NT
             val ntStates = comp.nonterminals.associateWith { automaton.addState() }
 
-            if (comp.recursion == Recursion.LEFT) {
-                for (C in comp.nonterminals) {
-                    for (prod in C.productions) {
-                        val allSymbols = prod.getAllTargetSymbols()
+            for (C in comp.nonterminals) {
+                for (prod in C.productions) {
+                    val allSymbols = prod.getAllTargetSymbols()
+                    if (allSymbols.none { X -> X is Nonterminal && comp.contains(X) }) {
                         //  ( C --> X1 ... Xm) in P such that C in Ni && X1, ..., Xm not in Ni
-                        if (
-                            allSymbols.all { X ->
-                                X is Terminal || (X is Nonterminal && !comp.contains(X))
-                            }
-                        ) {
+                        if (comp.recursion == Recursion.LEFT) {
                             nederhofMakeFA(state0, allSymbols, ntStates[C]!!)
-                        }
-
-                        val D = allSymbols.first()
-                        val rest = allSymbols.drop(1)
-                        //  ( C --> DX1 ... Xm) in P such that C, D in Ni && X1, ..., Xm not in Ni
-                        if (
-                            D is Nonterminal &&
-                                comp.contains(D) &&
-                                rest.all { X ->
-                                    X is Terminal || (X is Nonterminal && !comp.contains(X))
-                                }
-                        ) {
-                            nederhofMakeFA(ntStates[D]!!, rest, ntStates[C]!!)
-                        }
-                    }
-                }
-                // let Δ = Δ U {(qA, ε, q1)}
-                addEdge(ntStates[A]!!, state1, Terminal.epsilon())
-            } else { // recursion type RIGHT
-                for (C in comp.nonterminals) {
-                    for (prod in C.productions) {
-                        val allSymbols = prod.getAllTargetSymbols()
-                        //  ( C --> X1 ... Xm) in P such that C in Ni && X1, ..., Xm not in Ni ??
-                        if (
-                            allSymbols.all { X ->
-                                X is Terminal || (X is Nonterminal && !comp.contains(X))
-                            }
-                        ) {
+                        } else {
                             nederhofMakeFA(ntStates[C]!!, allSymbols, state1)
                         }
+                    }
 
-                        val D = allSymbols.last()
-                        val rest = allSymbols.dropLast(1)
-                        //  ( C --> X1 ... XmD) in P such that C in Ni && X1, ..., Xm not in Ni
-                        if (
-                            D is Nonterminal &&
-                                comp.contains(D) &&
-                                rest.all { X ->
-                                    X is Terminal || (X is Nonterminal && !comp.contains(X))
-                                }
-                        ) {
+                    val D: Symbol
+                    val rest: List<Symbol>
+                    if (comp.recursion == Recursion.LEFT) {
+                        //  ( C --> DX1 ... Xm) in P such that C, D in Ni && X1, ..., Xm not in Ni
+                        D = allSymbols.first()
+                        rest = allSymbols.drop(1)
+                    } else {
+                        //  ( C --> X1 ... XmD) in P such that C, D in Ni && X1, ..., Xm not in Ni
+                        D = allSymbols.last()
+                        rest = allSymbols.dropLast(1)
+                    }
+
+                    if (
+                        D is Nonterminal &&
+                            comp.contains(D) &&
+                            rest.none { X -> X is Nonterminal && comp.contains(X) }
+                    ) {
+                        if (comp.recursion == Recursion.LEFT) {
+                            nederhofMakeFA(ntStates[D]!!, rest, ntStates[C]!!)
+                        } else {
                             nederhofMakeFA(ntStates[C]!!, rest, ntStates[D]!!)
                         }
                     }
                 }
+            }
+
+            if (comp.recursion == Recursion.LEFT) {
                 // let Δ = Δ U {(qA, ε, q1)}
+                addEdge(ntStates[A]!!, state1, Terminal.epsilon())
+            } else {
+                // let Δ = Δ U {(q0, ε, qA)}
                 addEdge(state0, ntStates[A]!!, Terminal.epsilon())
             }
         } else { // A is not recursive

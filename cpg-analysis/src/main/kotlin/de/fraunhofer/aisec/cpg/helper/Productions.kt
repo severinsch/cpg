@@ -156,4 +156,8 @@ class Terminal(
         SetCharSet(value.toString().toCollection(mutableSetOf())),
         isLiteral = true
     )
+
+    override fun toString(): String {
+        return "'$value'"
+    }
 }

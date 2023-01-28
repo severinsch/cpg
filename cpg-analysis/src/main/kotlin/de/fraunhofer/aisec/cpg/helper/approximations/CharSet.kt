@@ -117,6 +117,10 @@ class SigmaCharSet(val removed: MutableSet<Char> = mutableSetOf()) : CharSet {
         // this won't occur
         return removed.hashCode().inv()
     }
+
+    override fun toString(): String {
+        return "Σ \\ {${removed.joinToString(separator = ",", prefix = "{", postfix = "}") { it.toString() }}}"
+    }
 }
 
 /** A [CharSet] that represents a set of form C = {c1, c2, c3, ...} */
@@ -178,5 +182,9 @@ class SetCharSet(val chars: MutableSet<Char> = mutableSetOf()) : CharSet {
 
     override fun hashCode(): Int {
         return chars.hashCode()
+    }
+
+    override fun toString(): String {
+        return chars.joinToString(separator = ",", prefix = "{", postfix = "}") { it.toString() }
     }
 }

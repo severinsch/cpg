@@ -70,6 +70,10 @@ class Component {
     operator fun contains(nt: Nonterminal): Boolean {
         return nonterminals.contains(nt)
     }
+
+    override fun toString(): String {
+        return "[${nonterminals.joinToString(separator = ",") { n -> n.toString() }}]"
+    }
 }
 
 class SCC(private val grammar: Grammar) {

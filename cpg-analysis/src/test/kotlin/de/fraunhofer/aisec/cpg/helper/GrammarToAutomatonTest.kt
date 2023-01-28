@@ -34,7 +34,7 @@ import org.junit.jupiter.api.Test
 
 class GrammarToAutomatonTest {
 
-    fun prettyPrintPattern(pattern: String): String {
+    private fun prettyPrintPattern(pattern: String): String {
         return pattern.replace("\\Q", "").replace("\\E", "")
     }
 
@@ -93,6 +93,11 @@ class GrammarToAutomatonTest {
 
         val nfaRegexPattern = automaton.toRegex()
         println("Regex from NFA: ${prettyPrintPattern(nfaRegexPattern)}")
+
+        val nfaRegexPatternWithoutHeuristic = automaton.toRegex { _ -> 0 }
+        println(
+            "Regex from NFA without heuristic: ${prettyPrintPattern(nfaRegexPatternWithoutHeuristic)}"
+        )
 
         val nfaRegex = Regex(nfaRegexPattern)
         assert(nfaRegex.matches("a+a+a+a"))
