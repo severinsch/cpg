@@ -26,6 +26,8 @@
 package de.fraunhofer.aisec.cpg.helper
 
 import de.fraunhofer.aisec.cpg.analysis.ValueEvaluator
+import de.fraunhofer.aisec.cpg.analysis.fsm.NFA
+import de.fraunhofer.aisec.cpg.analysis.fsm.State
 import de.fraunhofer.aisec.cpg.graph.Node
 import de.fraunhofer.aisec.cpg.graph.statements.expressions.BinaryOperator
 import de.fraunhofer.aisec.cpg.graph.statements.expressions.CallExpression
@@ -103,7 +105,7 @@ sealed class Operation(val priority: Int) {
     open fun charsetTransformation(cs: CharSet): CharSet = cs
     // TODO maybe replace with subclasses for BinaryOperations
     open fun charsetTransformation(cs1: CharSet, cs2: CharSet): CharSet = cs1 union cs2
-    open fun regularApproximation(regex: Regex): Regex = TODO()
+    open fun regularApproximation(automaton: NFA, affectedStates: List<State>): Unit = TODO()
     abstract override fun toString(): String
 }
 
@@ -128,6 +130,21 @@ class ReplaceBothKnown(val old: Char, val new: Char) : Operation(4) {
             return newCS
         }
         return cs
+    }
+
+    override fun regularApproximation(automaton: NFA, affectedStates: List<State>) {
+        // TODO: handle case where old or new is regex special character
+        affectedStates.forEach { state ->
+            state.outgoingEdges =
+                state.outgoingEdges
+                    .map { edge ->
+                        if (!edge.op.contains(old)) {
+                            return@map edge
+                        }
+                        return@map edge.copy(op = edge.op.replace(old, new))
+                    }
+                    .toSet()
+        }
     }
 
     override fun toString(): String {
@@ -166,6 +183,10 @@ class ReplaceNewKnown(val old: Node, val new: Char) : Operation(2) {
 class Trim(trimCall: CallExpression) : Operation(1) {
     override fun toString(): String {
         return "trim"
+    }
+
+    override fun regularApproximation(automaton: NFA, affectedStates: List<State>) {
+        // TODO
     }
 
     override fun charsetTransformation(cs: CharSet): CharSet {

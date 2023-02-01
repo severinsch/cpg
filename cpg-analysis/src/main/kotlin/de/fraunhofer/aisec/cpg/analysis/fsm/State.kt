@@ -25,6 +25,8 @@
  */
 package de.fraunhofer.aisec.cpg.analysis.fsm
 
+import de.fraunhofer.aisec.cpg.helper.automaton.OperationTaint
+
 /**
  * A simple class representing a state in an FSM.
  * - [name] is the name of the State and must be unique for the FSM.
@@ -33,6 +35,8 @@ package de.fraunhofer.aisec.cpg.analysis.fsm
  * order of statements was correct).
  */
 class State(name: Int, isStart: Boolean = false, isAcceptingState: Boolean = false) {
+    var taints: MutableSet<OperationTaint> = mutableSetOf()
+
     /**
      * Must only be changed through [FSM.changeStateProperty] as soon as they are part of a [FSM].
      */
