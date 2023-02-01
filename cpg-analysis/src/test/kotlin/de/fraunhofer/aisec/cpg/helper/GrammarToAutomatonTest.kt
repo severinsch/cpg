@@ -26,6 +26,7 @@
 package de.fraunhofer.aisec.cpg.helper
 
 import de.fraunhofer.aisec.cpg.analysis.fsm.NFA
+import de.fraunhofer.aisec.cpg.graph.statements.expressions.CallExpression
 import de.fraunhofer.aisec.cpg.helper.approximations.CharSetApproximation
 import de.fraunhofer.aisec.cpg.helper.approximations.RegularApproximation
 import de.fraunhofer.aisec.cpg.helper.automaton.GrammarToNFA
@@ -40,21 +41,15 @@ class GrammarToAutomatonTest {
 
     @Test
     fun example1() {
-        // original grammar
-        // S -> T S
-        // S -> a
-        // T -> S P
-        // P -> +
-        val g = Grammar()
-        val S = Nonterminal(0, label = "S")
-        val T = Nonterminal(1, label = "T")
-        val P = Nonterminal(2, label = "P")
-        S.addProduction(ConcatProduction(T, S))
-        S.addProduction(TerminalProduction(Terminal("a")))
-        T.addProduction(ConcatProduction(S, P))
-        P.addProduction(TerminalProduction(Terminal("+")))
-        listOf(S, T, P).forEach { g.addNonterminal(it) }
-        g.startNonterminal = S
+        val grammarDefinition =
+            """
+        S -> T S
+        S -> a
+        T -> S P
+        P -> +
+        """.trimIndent()
+
+        val g = grammarStringToGrammar(grammarDefinition)
 
         println("Initial Grammar:\n${g.printGrammar()}")
 
@@ -108,45 +103,127 @@ class GrammarToAutomatonTest {
     }
 
     @Test
-    fun test2() {
+    fun example2() {
+        // A -> C
+        // C -> bD
+        // C -> aA
+        // E -> K
+        // E -> op(K)
+        // K -> fF
+        // F -> f
+        // F -> K
+
+        val g = Grammar()
+        val A = Nonterminal(0, label = "A")
+        val C = Nonterminal(1, label = "C")
+        val D = Nonterminal(2, label = "D")
+        val TB = Nonterminal(3, label = "TB")
+        val TA = Nonterminal(4, label = "TA")
+        val TD = Nonterminal(5, label = "TD")
+        val E = Nonterminal(6, label = "E")
+        val TE = Nonterminal(7, label = "TE")
+        val F = Nonterminal(8, label = "F")
+        val TF = Nonterminal(9, label = "TF")
+        val K = Nonterminal(10, label = "K")
+        A.addProduction(UnitProduction(C))
+        C.addProduction(ConcatProduction(TA, A))
+        C.addProduction(ConcatProduction(TB, D))
+        D.addProduction(ConcatProduction(E, TD))
+        // E.addProduction(ConcatProduction(D, TE))
+        E.addProduction(UnitProduction(K))
+        E.addProduction(UnaryOpProduction(ReplaceBothKnown('f', 'x'), K))
+        K.addProduction(ConcatProduction(TF, F))
+        F.addProduction(UnitProduction(TF))
+        F.addProduction(UnitProduction(K))
+        TF.addProduction(TerminalProduction(Terminal("f")))
+        TE.addProduction(TerminalProduction(Terminal("e")))
+        TB.addProduction(TerminalProduction(Terminal("b")))
+        TA.addProduction(TerminalProduction(Terminal("a")))
+        TD.addProduction(TerminalProduction(Terminal("d")))
+        listOf(A, C, D, TB, TA, TD, TE, E, F, K, TF).forEach { g.addNonterminal(it) }
+        g.startNonterminal = A
+        println("Initial grammar: ${g.printGrammar()}")
+
+        CharSetApproximation(g).approximate()
+        println("After CharSet Approximation:\n${g.printGrammar()}")
+
+        RegularApproximation(g, setOf(0)).approximate()
+        println("After Regular Approximation:\n${g.printGrammar()}")
+
+        val nfa = GrammarToNFA(g).makeFA()
+        println("NFA:\n${nfa.toDotString().replace("\\Q", "").replace("\\E", "")}")
+
+        val pattern = nfa.toRegex()
+        println("Pattern: ${prettyPrintPattern(pattern)}")
+    }
+
+    @Test
+    fun testTaintPropagation() {
+        // A -> op(C)
+        // C -> op(D)
+        // D -> d
+        // C -> op(E)
+        // E -> K
+        // E -> op(K)
+        // K -> fF
+        // F -> f
+        // F -> K
+
+        val g = Grammar()
+        val A = Nonterminal(0, label = "A")
+        val C = Nonterminal(1, label = "C")
+        val D = Nonterminal(2, label = "D")
+
+        val E = Nonterminal(6, label = "E")
+        val F = Nonterminal(8, label = "F")
+        val TF = Nonterminal(9, label = "TF")
+        val K = Nonterminal(10, label = "K")
+        A.addProduction(UnaryOpProduction(Trim(CallExpression()), C))
+        C.addProduction(UnaryOpProduction(ReplaceBothKnown('d', 'c'), D))
+        D.addProduction(TerminalProduction(Terminal("d")))
+        C.addProduction(UnaryOpProduction(ReplaceBothKnown('x', 'y'), E))
+        E.addProduction(UnitProduction(K))
+        E.addProduction(UnaryOpProduction(ReplaceBothKnown('f', 'x'), K))
+        K.addProduction(ConcatProduction(TF, F))
+        F.addProduction(UnitProduction(TF))
+        F.addProduction(UnitProduction(K))
+        TF.addProduction(TerminalProduction(Terminal("f")))
+
+        listOf(A, C, D, E, F, K, TF).forEach { g.addNonterminal(it) }
+        g.startNonterminal = A
+        println("Initial grammar: ${g.printGrammar()}")
+
+        CharSetApproximation(g).approximate()
+        println("After CharSet Approximation:\n${g.printGrammar()}")
+
+        RegularApproximation(g, setOf(0)).approximate()
+        println("After Regular Approximation:\n${g.printGrammar()}")
+
+        val nfa = GrammarToNFA(g).makeFA()
+        println("NFA:\n${nfa.toDotString().replace("\\Q", "").replace("\\E", "")}")
+
+        val pattern = nfa.toRegex()
+        println("Pattern: ${prettyPrintPattern(pattern)}")
+    }
+
+    @Test
+    fun example3() {
         // aus nederhof paper
         // S -> Aa
         // A -> SB
         // A -> Bb
         // B -> Bc
         // B -> d
+        val grammarDefinition =
+            """
+            S -> Aa
+            A -> SB
+            A -> Bb
+            B -> Bc
+            B -> d
+        """.trimIndent()
 
-        // unsere darstellung:
-        // S -> AT
-        // A -> SB
-        // A -> BU
-        // B -> BV
-        // B -> W
-        // T -> a
-        // U -> b
-        // V -> c
-        // W -> d
-
-        val g = Grammar()
-        val S = Nonterminal(0, label = "S")
-        val A = Nonterminal(1, label = "A")
-        val B = Nonterminal(2, label = "B")
-        val T = Nonterminal(3, label = "T")
-        val U = Nonterminal(4, label = "U")
-        val V = Nonterminal(5, label = "V")
-        val W = Nonterminal(6, label = "W")
-        S.addProduction(ConcatProduction(A, T))
-        A.addProduction(ConcatProduction(S, B))
-        A.addProduction(ConcatProduction(B, U))
-        B.addProduction(ConcatProduction(B, V))
-        B.addProduction(UnitProduction(W))
-        T.addProduction(TerminalProduction(Terminal("a")))
-        U.addProduction(TerminalProduction(Terminal("b")))
-        V.addProduction(TerminalProduction(Terminal("c")))
-        W.addProduction(TerminalProduction(Terminal("d")))
-
-        listOf(S, A, B, T, U, V, W).forEach { g.addNonterminal(it) }
-        g.startNonterminal = S
+        val g = grammarStringToGrammar(grammarDefinition)
 
         println("Initial Grammar:\n${g.printGrammar()}")
 
@@ -162,6 +239,74 @@ class GrammarToAutomatonTest {
 
         val dfaRegexPattern = dfaAsNfa.toRegex()
         println("Regex from DFA: ${prettyPrintPattern(dfaRegexPattern)}")
+
+        val nfaRegexPattern = automaton.toRegex()
+        println("Regex from NFA: ${prettyPrintPattern(nfaRegexPattern)}")
+    }
+
+    @Test
+    fun exampleRightRecursion() {
+        // for example in paper to show why calls between right and left recursion are
+        // different
+        // ('a' transition needs to be added to start of automaton for left recursion, but to the
+        // end for right recursion of same grammar)
+
+        val grammarDefinition = """
+        A -> a
+        A -> B
+        B -> bA
+        """
+        val g = grammarStringToGrammar(grammarDefinition)
+
+        println("Initial Grammar:\n${g.printGrammar()}")
+
+        val automaton = GrammarToNFA(g).makeFA()
+        println("Automaton:\n${automaton.toDotString()}")
+
+        val nfaRegexPattern = automaton.toRegex()
+        println("Regex from NFA: ${prettyPrintPattern(nfaRegexPattern)}")
+    }
+
+    @Test
+    fun exampleLeftRecursion() {
+        // for example in paper to show why calls between right and left recursion are
+        // different
+        // ('a' transition needs to be added to start of automaton for left recursion, but to the
+        // end for right recursion of same grammar)
+
+        val grammarDefinition = """
+        A -> a
+        A -> B
+        B -> Ab
+        """
+        val g = grammarStringToGrammar(grammarDefinition)
+
+        println("Initial Grammar:\n${g.printGrammar()}")
+
+        val automaton = GrammarToNFA(g).makeFA()
+        println("Automaton:\n${automaton.toDotString()}")
+
+        val nfaRegexPattern = automaton.toRegex()
+        println("Regex from NFA: ${prettyPrintPattern(nfaRegexPattern)}")
+    }
+
+    @Test
+    fun exampleNoRecursion() {
+        // for example in paper to show why non-recursive single terminals are irrelevant
+
+        val grammarDefinition =
+            """
+        A -> B
+        A -> C
+        B -> b
+        C -> c
+        """
+        val g = grammarStringToGrammar(grammarDefinition)
+
+        println("Initial Grammar:\n${g.printGrammar()}")
+
+        val automaton = GrammarToNFA(g).makeFA()
+        println("Automaton:\n${automaton.toDotString()}")
 
         val nfaRegexPattern = automaton.toRegex()
         println("Regex from NFA: ${prettyPrintPattern(nfaRegexPattern)}")

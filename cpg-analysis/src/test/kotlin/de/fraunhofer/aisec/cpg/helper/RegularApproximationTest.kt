@@ -36,29 +36,15 @@ class RegularApproximationTest {
         // A -> aBa
         // B -> bA | b
 
-        // represented as
-        // TA -> a
-        // TB -> b
-        // R -> TA B
-        // A -> R TA
-        // B -> TB A | TB
+        val grammarDefinition =
+            """
+        A -> Ra
+        R -> aB
+        B -> bA | b
+        """.trimIndent()
 
-        val g = Grammar()
-        val A = Nonterminal(0, label = "A")
-        val B = Nonterminal(1, label = "B")
-        val TA = Nonterminal(2, label = "TA")
-        val TB = Nonterminal(3, label = "TB")
-        val R = Nonterminal(4, label = "R")
+        val g = grammarStringToGrammar(grammarDefinition)
 
-        TA.addProduction(TerminalProduction(Terminal("a")))
-        TB.addProduction(TerminalProduction(Terminal("b")))
-        R.addProduction(ConcatProduction(TA, B))
-        A.addProduction(ConcatProduction(R, TA))
-        B.addProduction(ConcatProduction(TB, A))
-        B.addProduction(UnitProduction(TB))
-
-        listOf(A, B, TA, TB, R).forEach { g.addNonterminal(it) }
-        g.startNonterminal = A
         println("Initial grammar: ${g.printGrammar()}")
         val scc =
             SCC(g).also {
@@ -97,64 +83,14 @@ class RegularApproximationTest {
     }
 
     @Test
-    fun test2() {
-        // A -> C
-        // C -> bD
-        // C -> aA
-        // D -> d
-
-        // abd
-        // aabd
-        // bd
-        val g = Grammar()
-        val A = Nonterminal(0, label = "A")
-        val C = Nonterminal(1, label = "C")
-        val D = Nonterminal(2, label = "D")
-        val TB = Nonterminal(3, label = "TB")
-        val TA = Nonterminal(4, label = "TA")
-        val TD = Nonterminal(5, label = "TD")
-        A.addProduction(UnitProduction(C))
-        C.addProduction(ConcatProduction(TA, A))
-        C.addProduction(ConcatProduction(TB, D))
-        D.addProduction(UnitProduction(TD))
-        TB.addProduction(TerminalProduction(Terminal("b")))
-        TA.addProduction(TerminalProduction(Terminal("a")))
-        TD.addProduction(TerminalProduction(Terminal("d")))
-        listOf(A, C, D, TB, TA, TD).forEach { g.addNonterminal(it) }
-        g.startNonterminal = A
-        println("Initial grammar: ${g.printGrammar()}")
-        SCC(g).also {
-            it.components.forEach { c ->
-                c.determineRecursion()
-                println("Comp: ${c.nonterminals}: ${c.recursion}")
-            }
-        }
-        RegularApproximation(g, setOf(0)).approximate()
-        println("After Regular Approximation:\n${g.printGrammar()}")
-
-        val nfa = GrammarToNFA(g).makeFA()
-        println("NFA:\n${nfa.toDotString()}")
-
-        val pattern = nfa.toRegex()
-        println("Pattern: $pattern")
-    }
-
-    @Test
     fun test3() {
-        // S -> T S | a
-        // T -> S +
-        val g = Grammar()
-        val S = Nonterminal(0)
-        val T = Nonterminal(1)
-        val P = Nonterminal(2)
-        S.addProduction(ConcatProduction(T, S))
-        S.addProduction(TerminalProduction(Terminal("a")))
-        T.addProduction(ConcatProduction(S, P))
-        P.addProduction(TerminalProduction(Terminal("+")))
+        val grammarDefinition = """
+        S -> T S | a
+        T -> S +
+        """.trimIndent()
+        val g = grammarStringToGrammar(grammarDefinition)
 
-        listOf(S, T, P).forEach { g.addNonterminal(it) }
-
-        RegularApproximation(g, setOf(0)).approximate()
+        RegularApproximation(g).approximate()
         println(g.printGrammar())
 
         // S -> T
@@ -167,6 +103,5 @@ class RegularApproximationTest {
         // S' -> S'
         // R -> "a"
         // ==> S -> S | a ("" | + S) =?= a(+a)∗, was laut paper richtig ist?
-
     }
 }
