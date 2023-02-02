@@ -26,16 +26,12 @@
 package de.fraunhofer.aisec.cpg.helper
 
 /**
- * A simple grammar parser for easy grammar creation in tests.
- * The grammar is defined as a string, where each line represents a production.
- * Nonterminals are single uppercase letters, everything else is considered a terminal.
- * For each terminal "a" a new nonterminal "TA" with a single Terminalproduction is created.
- * Operation productions are not supported.
- * Format of the grammar:
- * {single NT} "->" {single symbol} ("|" {single symbol} {single symbol})*
- * Example:
- * S -> Ab
- * A -> Sa | a
+ * A simple grammar parser for easy grammar creation in tests. The grammar is defined as a string,
+ * where each line represents a production. Nonterminals are single uppercase letters, everything
+ * else is considered a terminal. For each terminal "a" a new nonterminal "TA" with a single
+ * Terminalproduction is created. Operation productions are not supported. Format of the grammar:
+ * {single NT} "->" {single symbol} ("|" {single symbol} {single symbol})* Example: S -> Ab A -> Sa
+ * | a
  */
 fun grammarStringToGrammar(grammarString: String): Grammar {
     val grammar = Grammar()
