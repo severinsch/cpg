@@ -35,10 +35,6 @@ import org.junit.jupiter.api.Test
 
 class GrammarToAutomatonTest {
 
-    private fun prettyPrintPattern(pattern: String): String {
-        return pattern.replace("\\Q", "").replace("\\E", "")
-    }
-
     @Test
     fun example1() {
         val grammarDefinition =
@@ -142,7 +138,7 @@ class GrammarToAutomatonTest {
         TD.addProduction(TerminalProduction(Terminal("d")))
         listOf(A, C, D, TB, TA, TD, TE, E, F, K, TF).forEach { g.addNonterminal(it) }
         g.startNonterminal = A
-        println("Initial grammar: ${g.printGrammar()}")
+        println("Initial grammar:\n${g.printGrammar()}")
 
         CharSetApproximation(g).approximate()
         println("After CharSet Approximation:\n${g.printGrammar()}")
@@ -152,6 +148,39 @@ class GrammarToAutomatonTest {
 
         val nfa = GrammarToNFA(g).makeFA()
         println("NFA:\n${nfa.toDotString().replace("\\Q", "").replace("\\E", "")}")
+
+        val pattern = nfa.toRegex()
+        println("Pattern: ${prettyPrintPattern(pattern)}")
+    }
+
+    @Test
+    fun exampleOperationProduction() {
+        // A -> F
+        // A -> op(F)
+        // F -> fF
+        // F -> f
+
+        val g = Grammar()
+        val A = Nonterminal(0, label = "A")
+        val F = Nonterminal(2, label = "F")
+        val TF = Nonterminal(3, label = "TF")
+
+        A.addProduction(UnitProduction(F))
+        A.addProduction(UnaryOpProduction(ReplaceBothKnown('f', 'x'), F))
+        F.addProduction(ConcatProduction(TF, F))
+        F.addProduction(UnitProduction(TF))
+        TF.addProduction(TerminalProduction(Terminal("f")))
+        listOf(A, F, TF).forEach { g.addNonterminal(it) }
+        g.startNonterminal = A
+        println("Initial grammar:\n${g.printGrammar()}")
+
+        val nfa = GrammarToNFA(g).makeFA()
+        println("NFA:\n${nfa.toDotString().replace("\\Q", "").replace("\\E", "")}")
+
+        val nfaNoOperations = GrammarToNFA(g).makeFA(false)
+        println(
+            "NFA without resolved operations:\n${nfaNoOperations.toDotString().replace("\\Q", "").replace("\\E", "")}"
+        )
 
         val pattern = nfa.toRegex()
         println("Pattern: ${prettyPrintPattern(pattern)}")

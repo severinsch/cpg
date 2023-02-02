@@ -138,6 +138,9 @@ class ReplaceBothKnown(val old: Char, val new: Char) : Operation(4) {
             state.outgoingEdges =
                 state.outgoingEdges
                     .map { edge ->
+                        if (edge.taints.none { it.operation == this }) {
+                            return@map edge
+                        }
                         if (!edge.op.contains(old)) {
                             return@map edge
                         }

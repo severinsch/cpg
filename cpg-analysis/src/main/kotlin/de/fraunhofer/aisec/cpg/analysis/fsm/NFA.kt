@@ -134,7 +134,7 @@ class NFA(states: Set<State> = setOf()) : FSM(states) {
     }
 
     // used for delgado heuristic
-    fun getAllIncomingEdges(state: State): List<Edge> {
+    private fun getAllIncomingEdges(state: State): List<Edge> {
         return states
             .filter { it != state }
             .flatMap { it.outgoingEdges }
@@ -142,7 +142,7 @@ class NFA(states: Set<State> = setOf()) : FSM(states) {
     }
 
     // used for delgado heuristic
-    fun getAllOutgoingEdges(state: State): List<Edge> {
+    private fun getAllOutgoingEdges(state: State): List<Edge> {
         return state.outgoingEdges.filter { it.nextState != state }
     }
 
@@ -204,7 +204,11 @@ class NFA(states: Set<State> = setOf()) : FSM(states) {
             // EPSILON wouldn't change anything here because we put the asterisk operator around it.
             // So, we just remove such an edge.
             // There's a loop, so we surround it with brackets and put the * operator
-            if (selfLoop.isNotEmpty()) selfLoop = "$selfLoop*"
+            if (selfLoop.isEmpty()) return selfLoop
+            selfLoop =
+                if (selfLoop.length > 1 && !(selfLoop.startsWith("(") && selfLoop.endsWith(")")))
+                    "($selfLoop)*"
+                else "$selfLoop*"
 
             return selfLoop
         }

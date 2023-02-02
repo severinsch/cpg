@@ -35,7 +35,7 @@ data class Edge(
     val op: String,
     val base: String? = null,
     val nextState: State,
-    val taint: OperationTaint? = null
+    val taints: List<OperationTaint> = emptyList()
 ) {
     fun matches(edge: Edge) = base == edge.base && op == edge.op
 

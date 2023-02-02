@@ -91,7 +91,7 @@ class GrammarToNFA(val grammar: Grammar) {
                 t.isLiteral -> Regex.escape(t.value)
                 else -> t.value
             }
-        automaton.addEdge(from, Edge(edgeVal.ifEmpty { "ε" }, nextState = to))
+        automaton.addEdge(from, Edge(edgeVal.ifEmpty { "ε" }, nextState = to, taints = taints))
         if (taints.isNotEmpty()) {
             to.taints.addAll(taints)
             from.taints.addAll(taints)

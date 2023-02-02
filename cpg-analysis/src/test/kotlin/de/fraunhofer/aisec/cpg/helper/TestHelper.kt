@@ -25,6 +25,10 @@
  */
 package de.fraunhofer.aisec.cpg.helper
 
+fun prettyPrintPattern(pattern: String): String {
+    return pattern.replace("\\Q", "").replace("\\E", "")
+}
+
 /**
  * A simple grammar parser for easy grammar creation in tests. The grammar is defined as a string,
  * where each line represents a production. Nonterminals are single uppercase letters, everything
