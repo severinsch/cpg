@@ -26,6 +26,7 @@
 package de.fraunhofer.aisec.cpg.helper
 
 import de.fraunhofer.aisec.cpg.analysis.ValueEvaluator
+import de.fraunhofer.aisec.cpg.analysis.fsm.Edge
 import de.fraunhofer.aisec.cpg.analysis.fsm.NFA
 import de.fraunhofer.aisec.cpg.analysis.fsm.State
 import de.fraunhofer.aisec.cpg.graph.Node
@@ -63,7 +64,7 @@ fun createOperationProduction(node: CallExpression, cfg: Grammar): Production {
                     ReplaceBothKnown(arg1 as Char, arg2 as Char)
                 }
                 "trim" -> {
-                    Trim(node)
+                    Trim()
                 }
                 else -> throw IllegalStateException("Unreachable")
             }
@@ -144,6 +145,9 @@ class ReplaceBothKnown(val old: Char, val new: Char) : Operation(4) {
                         if (!edge.op.contains(old)) {
                             return@map edge
                         }
+                        if (!edge.op.contains("\\Q")) {
+                            return@map edge
+                        }
                         return@map edge.copy(op = edge.op.replace(old, new))
                     }
                     .toSet()
@@ -183,13 +187,82 @@ class ReplaceNewKnown(val old: Node, val new: Char) : Operation(2) {
     }
 }
 
-class Trim(trimCall: CallExpression) : Operation(1) {
+class Trim : Operation(1) {
     override fun toString(): String {
         return "trim"
     }
 
     override fun regularApproximation(automaton: NFA, affectedStates: List<State>) {
-        // TODO
+        // TODO this is wrong :(
+        // brics add words without whitespace to the language by adding transitions
+        val incomingTaintedEdges: MutableMap<State, MutableSet<Pair<State, Edge>>> = mutableMapOf()
+        affectedStates.forEach { state ->
+            state.outgoingEdges.forEach { edge ->
+                if (edge.taints.any { it.operation == this }) {
+                    incomingTaintedEdges
+                        .getOrPut(edge.nextState) { mutableSetOf() }
+                        .add(state to edge)
+                }
+            }
+        }
+        println(affectedStates)
+        println(incomingTaintedEdges[affectedStates.first()])
+        val startState = affectedStates.first { s -> incomingTaintedEdges[s].isNullOrEmpty() }
+        val endStates =
+            affectedStates.filter { s ->
+                s.outgoingEdges.none { edge -> edge.taints.any { it.operation == this } }
+            }
+
+        fun trimStart(state: State, visited: MutableSet<State>) {
+            if (state in visited) {
+                return
+            }
+            visited.add(state)
+            println("start edges b4: ${state.outgoingEdges}")
+            state.outgoingEdges =
+                state.outgoingEdges
+                    .map { edge ->
+                        if (edge.taints.any { it.operation == this }) {
+                            println("trimStart edge from $state to ${edge.nextState}")
+                            if (edge.op.isBlank() || edge.op == "ε") {
+                                trimStart(edge.nextState, visited)
+                            }
+                            return@map edge.copy(op = edge.op.trimStart())
+                        }
+                        return@map edge
+                    }
+                    .toSet()
+            println("start edges b4: ${state.outgoingEdges}")
+        }
+
+        fun trimEnd(state: State, visited: MutableSet<State>) {
+            if (state in visited) {
+                return
+            }
+            visited.add(state)
+            val edges = incomingTaintedEdges[state] ?: return
+
+            edges.forEach { (prev, edge) ->
+                prev.outgoingEdges =
+                    prev.outgoingEdges
+                        .map {
+                            if (it == edge) {
+                                if (edge.taints.any { it.operation == this }) {
+                                    println("trimEnd edge from $prev to ${edge.nextState}")
+                                    if (edge.op.isBlank() || edge.op == "ε") {
+                                        trimEnd(prev, visited)
+                                    }
+                                    return@map edge.copy(op = edge.op.trimEnd())
+                                }
+                            }
+                            return@map it
+                        }
+                        .toSet()
+            }
+        }
+
+        trimStart(startState, mutableSetOf())
+        endStates.forEach { trimEnd(it, mutableSetOf()) }
     }
 
     override fun charsetTransformation(cs: CharSet): CharSet {
