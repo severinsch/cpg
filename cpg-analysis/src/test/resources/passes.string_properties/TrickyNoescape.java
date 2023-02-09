@@ -25,24 +25,3 @@ public class Tricky
         System.out.println(res);
     }
 }
-
-q0,) -> e;
-q0,* -> e;
-q0,+ -> e;
-q1,) -> e;
-q1,* -> e;
-q1,+ -> e;
-q2,( -> e;
-q2,) -> e;
-q2,i -> e;
-q3,( -> e;
-q3,) -> e;
-q3,* -> e;
-q3,+ -> e;
-q4,( -> e;
-q4,* -> e;
-q4,+ -> e;
-q4,i -> e;
-q5,( -> e;
-q5,) -> e;
-q5,i -> e;
