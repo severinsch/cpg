@@ -32,8 +32,7 @@ import de.fraunhofer.aisec.cpg.graph.Node
 import de.fraunhofer.aisec.cpg.graph.declarations.FieldDeclaration
 import de.fraunhofer.aisec.cpg.graph.declarations.FunctionDeclaration
 import de.fraunhofer.aisec.cpg.graph.declarations.VariableDeclaration
-import de.fraunhofer.aisec.cpg.graph.statements.CompoundStatement
-import de.fraunhofer.aisec.cpg.graph.statements.ReturnStatement
+import de.fraunhofer.aisec.cpg.graph.statements.*
 import de.fraunhofer.aisec.cpg.graph.statements.expressions.*
 import de.fraunhofer.aisec.cpg.helpers.SubgraphWalker.IterativeGraphWalker
 import de.fraunhofer.aisec.cpg.helpers.Util
@@ -118,11 +117,42 @@ class DFGPass : Pass() {
         if (node.body is ReturnStatement) {
             node.addPrevDFG(node.body as ReturnStatement)
         } else if (node.body is CompoundStatement) {
-            (node.body as CompoundStatement)
-                .statements
+            flattenStatements(listOf(node.body as CompoundStatement))
                 .filterIsInstance<ReturnStatement>()
                 .forEach { node.addPrevDFG(it) }
         }
+    }
+
+    private fun flattenStatements(statements: List<Statement>): List<Statement> {
+        val result = mutableListOf<Statement>()
+        for (statement in statements) {
+            when (statement) {
+                is CompoundStatement -> {
+                    result.addAll(flattenStatements(statement.statements))
+                }
+                is IfStatement -> {
+                    result.addAll(
+                        flattenStatements(listOf(statement.thenStatement, statement.elseStatement))
+                    )
+                }
+                is ForStatement -> {
+                    result.addAll(flattenStatements(listOf(statement.statement)))
+                }
+                is ForEachStatement -> {
+                    result.addAll(flattenStatements(listOf(statement.statement)))
+                }
+                is SwitchStatement -> {
+                    result.addAll(flattenStatements(listOf(statement.statement)))
+                }
+                is WhileStatement -> {
+                    result.addAll(flattenStatements(listOf(statement.statement)))
+                }
+                else -> {
+                    result.add(statement)
+                }
+            }
+        }
+        return result
     }
 
     /**
