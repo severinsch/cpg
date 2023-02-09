@@ -88,7 +88,7 @@ class GrammarToNFA(val grammar: Grammar) {
         val edgeVal =
             when {
                 t.isEpsilon -> "ε"
-                t.isLiteral -> Regex.escape(t.value)
+                t.isLiteral -> if (t.value.isBlank()) t.value else Regex.escape(t.value)
                 else -> t.value
             }
         automaton.addEdge(from, Edge(edgeVal.ifEmpty { "ε" }, nextState = to, taints = taints))
@@ -138,7 +138,11 @@ class GrammarToNFA(val grammar: Grammar) {
         ) { // α must consist of a single nonterminal
 
             // for each B in Ni do let qB = fresh_state end; in map to access for each NT
-            val ntStates = comp.nonterminals.associateWith { automaton.addState() }
+            val ntStates =
+                comp.nonterminals.associateWith { nt ->
+                    automaton.states.firstOrNull() { it.associatedNonterminalID == nt.id }
+                        ?: automaton.addState(associatedNTId = nt.id)
+                }
 
             val returnedTaints: MutableList<OperationTaint> = mutableListOf()
             for (C in comp.nonterminals) {

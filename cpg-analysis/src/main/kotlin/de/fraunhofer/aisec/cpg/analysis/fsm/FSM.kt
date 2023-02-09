@@ -63,9 +63,18 @@ sealed class FSM(states: Set<State>) {
     }
 
     /** Generates a new state and adds it to this FSM. */
-    fun addState(isStart: Boolean = false, isAcceptingState: Boolean = false): State {
+    fun addState(
+        isStart: Boolean = false,
+        isAcceptingState: Boolean = false,
+        associatedNTId: Long? = null
+    ): State {
         val newState =
-            State(name = nextStateName, isStart = isStart, isAcceptingState = isAcceptingState)
+            State(
+                name = nextStateName,
+                isStart = isStart,
+                isAcceptingState = isAcceptingState,
+                associatedNonterminalID = associatedNTId
+            )
         addState(newState)
         return newState
     }
@@ -171,7 +180,8 @@ sealed class FSM(states: Set<State>) {
             }
 
             for (e in s.outgoingEdges) {
-                edges += "\tq${s.name} -> q${e.nextState.name} [label=\"${e.toDotLabel()}\"];\n"
+                edges +=
+                    "\tq${s.name} -> q${e.nextState.name} [label=\"${e.toDotLabel()}${if (e.taints.isNotEmpty()) "(t)" else ""}\"];\n"
             }
         }
         return "$str$edges}"

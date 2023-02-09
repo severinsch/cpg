@@ -166,6 +166,14 @@ class NFA(states: Set<State> = setOf()) : FSM(states) {
         return sumIn + sumOut + rest
     }
 
+    private fun toOptional(pattern: String): String {
+        return if (pattern.isEmpty() || pattern.length == 1) {
+            pattern
+        } else {
+            "($pattern)?"
+        }
+    }
+
     fun toRegex(): String {
         return toRegex(::delgadoHeuristic)
     }
@@ -224,7 +232,7 @@ class NFA(states: Set<State> = setOf()) : FSM(states) {
                 var regex = v.filter { it.op != EPSILON }.combineToRegex()
 
                 // We put the ? around this regex because we can bypass it with the EPSILON edge.
-                if (regex.isNotEmpty() && v.any { it.op == EPSILON }) regex += "?"
+                if (regex.isNotEmpty() && v.any { it.op == EPSILON }) regex = toOptional(regex)
 
                 result[k] = regex
             }
@@ -247,7 +255,7 @@ class NFA(states: Set<State> = setOf()) : FSM(states) {
 
                 // If there's an EPSILON edge from state to toReplace, everything is optional
                 if (outgoingEdges.any { it.op == EPSILON && regexToReplace.isNotEmpty() })
-                    regexToReplace += "?"
+                    regexToReplace = toOptional(regexToReplace)
 
                 // We add edges from this state to each state reachable from the one to remove.
                 // It's the string to reach the state to be removed + the option(s) to reach the
@@ -265,21 +273,9 @@ class NFA(states: Set<State> = setOf()) : FSM(states) {
             }
         }
 
-        val copy = this.deepCopy()
+        val copy = this.deepCopy() as NFA
+        val (newStartState, newEndState) = copy.GNFAStartAndEndState()
         val stateSet = copy.states.toMutableSet()
-        // We generate a new start state to make the termination a bit easier.
-        val oldStart = stateSet.first { it.isStart }
-        oldStart.isStart = false
-        val newStartState = copy.addState(true, false)
-        newStartState.addEdge(Edge(EPSILON, null, oldStart))
-        stateSet.add(newStartState)
-
-        // We also generate a new end state
-        val newEndState = copy.addState(false, true)
-        stateSet
-            .filter { it.isAcceptingState && it != newEndState }
-            .forEach { it.addEdge(Edge(EPSILON, null, newEndState)) }
-        stateSet.add(newEndState)
 
         while (stateSet.isNotEmpty()) {
             val toProcess =
@@ -293,5 +289,51 @@ class NFA(states: Set<State> = setOf()) : FSM(states) {
         }
 
         return newStartState.outgoingEdges.joinToString("|") { "(${it.op})" }
+    }
+
+    /**
+     * If the NFA already is a GNFA, this method returns the start and end state. Otherwise, it
+     * generates a new start and end state,transforms the NFA accordingly and returns them.
+     */
+    private fun GNFAStartAndEndState(): Pair<State, State> {
+        var returnedStart = this.states.first { it.isStart }
+        var returnedEnd = this.states.first { it.isAcceptingState }
+
+        if (this.needsNewStart()) {
+
+            // We generate a new start state to make the termination a bit easier.
+            val oldStart = this.states.first { it.isStart }
+            oldStart.isStart = false
+            val newStartState = this.addState(true, false)
+            newStartState.addEdge(Edge(EPSILON, null, oldStart))
+            returnedStart = newStartState
+        }
+
+        if (this.needsNewEnd()) {
+            // We also generate a new end state
+            val newEndState = this.addState(false, true)
+            this.states
+                .filter { it.isAcceptingState && it != newEndState }
+                .forEach {
+                    it.addEdge(Edge(EPSILON, null, newEndState))
+                    it.isAcceptingState = false
+                }
+            returnedEnd = newEndState
+        }
+        return returnedStart to returnedEnd
+    }
+
+    private fun needsNewStart(): Boolean {
+        val currentStart = this.states.first { it.isStart }
+        // If the start state is an accepting state or has transitions into it, we need a new start
+        return currentStart.isAcceptingState ||
+            states.any { it.outgoingEdges.any { e -> e.nextState == currentStart } }
+    }
+
+    private fun needsNewEnd(): Boolean {
+        val currentEnd = this.states.singleOrNull { it.isAcceptingState }
+        // If there are multiple accepting sates or the accepting state has transitions out of it,
+        // we need a new one
+        return currentEnd == null || currentEnd.outgoingEdges.isNotEmpty()
     }
 }

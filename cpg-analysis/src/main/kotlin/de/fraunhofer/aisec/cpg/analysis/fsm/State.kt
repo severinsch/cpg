@@ -34,9 +34,13 @@ import de.fraunhofer.aisec.cpg.helper.automaton.OperationTaint
  * - [isAcceptingState] indicates if this State accepts the FSM (in our case, this means that the
  * order of statements was correct).
  */
-class State(name: Int, isStart: Boolean = false, isAcceptingState: Boolean = false) {
+class State(
+    name: Int,
+    isStart: Boolean = false,
+    isAcceptingState: Boolean = false,
+    val associatedNonterminalID: Long? = null
+) {
     var taints: MutableSet<OperationTaint> = mutableSetOf()
-
     /**
      * Must only be changed through [FSM.changeStateProperty] as soon as they are part of a [FSM].
      */
