@@ -66,6 +66,9 @@ sealed interface CharSet {
 /** A [CharSet] that represents a set of form C = Σ \ {c1, c2, c3, ...} */
 class SigmaCharSet(val removed: MutableSet<Char> = mutableSetOf()) : CharSet {
 
+    constructor(vararg cs: Char) : this(cs.toMutableSet())
+    constructor(cs: Collection<Char>) : this(cs.toMutableSet())
+
     override operator fun contains(c: Char): Boolean {
         return !removed.contains(c)
     }
@@ -127,6 +130,8 @@ class SigmaCharSet(val removed: MutableSet<Char> = mutableSetOf()) : CharSet {
 class SetCharSet(val chars: MutableSet<Char> = mutableSetOf()) : CharSet {
 
     constructor(vararg cs: Char) : this(cs.toMutableSet())
+
+    constructor(cs: Collection<Char>) : this(cs.toMutableSet())
 
     override operator fun contains(c: Char): Boolean {
         return chars.contains(c)

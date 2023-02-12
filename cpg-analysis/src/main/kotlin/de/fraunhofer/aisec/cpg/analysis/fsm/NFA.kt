@@ -196,6 +196,7 @@ class NFA(states: Set<State> = setOf()) : FSM(states) {
                 }
             }
             if (singleChars.size > 1) {
+                // TODO this check doesn't account for escaped single chars like \Q+\E
                 result += "[" + singleChars.joinToString("") + "]"
             } else {
                 result += singleChars.joinToString("")

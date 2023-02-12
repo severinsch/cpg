@@ -29,6 +29,7 @@ import de.fraunhofer.aisec.cpg.analysis.fsm.Edge
 import de.fraunhofer.aisec.cpg.analysis.fsm.NFA
 import de.fraunhofer.aisec.cpg.analysis.fsm.State
 import de.fraunhofer.aisec.cpg.helper.*
+import de.fraunhofer.aisec.cpg.helper.operations.Operation
 
 class OperationTaint(val operation: Operation) {
     override fun toString(): String {
@@ -76,7 +77,21 @@ class GrammarToNFA(val grammar: Grammar) {
 
     private fun resolveOperation(taint: OperationTaint) {
         val affectedStates = automaton.states.filter { it.taints.contains(taint) }
-        taint.operation.regularApproximation(automaton, affectedStates)
+        val affectedStatesByEdges =
+            automaton.states
+                .flatMap { state ->
+                    state.outgoingEdges.flatMap { edge ->
+                        if (edge.taints.contains(taint)) {
+                            setOf(state, edge.nextState)
+                        } else {
+                            emptySet()
+                        }
+                    }
+                }
+                .toSet()
+        val allAffectedStates = affectedStates.toSet() union affectedStatesByEdges
+
+        taint.operation.regularApproximation(automaton, allAffectedStates.toList())
     }
 
     private fun addEdge(
@@ -140,7 +155,7 @@ class GrammarToNFA(val grammar: Grammar) {
             // for each B in Ni do let qB = fresh_state end; in map to access for each NT
             val ntStates =
                 comp.nonterminals.associateWith { nt ->
-                    automaton.states.firstOrNull() { it.associatedNonterminalID == nt.id }
+                    automaton.states.firstOrNull { it.associatedNonterminalID == nt.id }
                         ?: automaton.addState(associatedNTId = nt.id)
                 }
 

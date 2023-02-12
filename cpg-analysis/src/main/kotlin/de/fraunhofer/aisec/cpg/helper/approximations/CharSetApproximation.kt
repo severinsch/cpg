@@ -26,6 +26,7 @@
 package de.fraunhofer.aisec.cpg.helper.approximations
 
 import de.fraunhofer.aisec.cpg.helper.*
+import de.fraunhofer.aisec.cpg.helper.operations.*
 import java.util.*
 import kotlin.contracts.ExperimentalContracts
 import kotlin.contracts.contract

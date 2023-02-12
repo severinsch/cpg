@@ -103,6 +103,16 @@ sealed class FSM(states: Set<State>) {
         addState(edge.nextState)
     }
 
+    fun removeState(state: State, removeEdges: Boolean = true) {
+        require(state in states) { "Cannot remove state $state as it is not part of this FSM." }
+        _states.remove(state)
+        if (!removeEdges) return
+        for (otherState in states) {
+            otherState.outgoingEdges =
+                otherState.outgoingEdges.filter { it.nextState != state }.toSet()
+        }
+    }
+
     /**
      * Safely change a property of a state contained in this [FSM]. Before changing the property,
      * this method makes sure that e.g., no other start state exists or that no other state already
@@ -181,7 +191,7 @@ sealed class FSM(states: Set<State>) {
 
             for (e in s.outgoingEdges) {
                 edges +=
-                    "\tq${s.name} -> q${e.nextState.name} [label=\"${e.toDotLabel()}${if (e.taints.isNotEmpty()) "(t)" else ""}\"];\n"
+                    "\tq${s.name} -> q${e.nextState.name} [label=\"${e.toDotLabel()}${if (e.taints.isNotEmpty()) e.taints.joinToString(prefix = "(", postfix = ")") { it.operation.toString().take(3) } else ""}\"];\n"
             }
         }
         return "$str$edges}"
