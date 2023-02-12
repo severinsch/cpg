@@ -28,6 +28,10 @@ package de.fraunhofer.aisec.cpg.helper
 import de.fraunhofer.aisec.cpg.helper.approximations.CharSetApproximation
 import de.fraunhofer.aisec.cpg.helper.approximations.RegularApproximation
 import de.fraunhofer.aisec.cpg.helper.automaton.GrammarToNFA
+import de.fraunhofer.aisec.cpg.helper.operations.ReplaceBothKnown
+import de.fraunhofer.aisec.cpg.helper.operations.Reverse
+import de.fraunhofer.aisec.cpg.helper.operations.ToUpperCase
+import de.fraunhofer.aisec.cpg.helper.operations.Trim
 import org.junit.jupiter.api.Test
 
 class OperationTest {
@@ -71,14 +75,6 @@ class OperationTest {
 
     @Test
     fun example2() {
-        // A -> C
-        // C -> bD
-        // C -> aA
-        // E -> K
-        // E -> op(K)
-        // K -> fF
-        // F -> f
-        // F -> K
 
         val g = Grammar()
         val A = Nonterminal(0, label = "A")
@@ -179,17 +175,16 @@ class OperationTest {
         val TF = Nonterminal(9, label = "TF")
         val K = Nonterminal(10, label = "K")
         A.addProduction(UnaryOpProduction(Trim(), C))
-        C.addProduction(UnaryOpProduction(ReplaceBothKnown('d', 'c'), D))
+        C.addProduction(UnaryOpProduction(ToUpperCase(), D))
         D.addProduction(TerminalProduction(Terminal("d")))
-        C.addProduction(UnaryOpProduction(ReplaceBothKnown('x', 'y'), E))
+        C.addProduction(UnaryOpProduction(Reverse(), E))
         E.addProduction(UnitProduction(K))
         E.addProduction(UnaryOpProduction(ReplaceBothKnown('f', 'x'), K))
         K.addProduction(ConcatProduction(TF, F))
         F.addProduction(UnitProduction(TF))
         F.addProduction(UnitProduction(K))
         TF.addProduction(TerminalProduction(Terminal("f")))
-
-        listOf(A, C, D, E, F, K, TF).forEach { g.addNonterminal(it) }
+        listOf(A, C, D, E, F, K, TF, TF).forEach { g.addNonterminal(it) }
         g.startNonterminal = A
         println("Initial grammar: ${g.printGrammar()}")
 
@@ -199,7 +194,67 @@ class OperationTest {
         RegularApproximation(g, setOf(0)).approximate()
         println("After Regular Approximation:\n${g.printGrammar()}")
 
-        val nfa = GrammarToNFA(g).makeFA()
+        val nfa = GrammarToNFA(g).makeFA(applyOperations = true)
+        println("NFA:\n${nfa.toDotString().replace("\\Q", "").replace("\\E", "")}")
+
+        val pattern = nfa.toRegex()
+        println("Pattern: ${prettyPrintPattern(pattern)}")
+    }
+
+    @Test
+    fun testReverse() {
+        // S -> X
+        // X -> xS
+        // X -> A
+        // A -> op(C)
+        // C -> op(D)
+        // D -> d
+        // C -> op(E)
+        // E -> K
+        // E -> op(K)
+        // K -> fF
+        // F -> f
+        // F -> K
+
+        val g = Grammar()
+        val S = Nonterminal(11, label = "S")
+        val X = Nonterminal(12, label = "X")
+        val TX = Nonterminal(13, label = "TX")
+        val A = Nonterminal(0, label = "A")
+        val C = Nonterminal(1, label = "C")
+        val D = Nonterminal(2, label = "D")
+
+        val E = Nonterminal(6, label = "E")
+        val F = Nonterminal(8, label = "F")
+        val TF = Nonterminal(9, label = "TF")
+        val TA = Nonterminal(14, label = "TA")
+        val K = Nonterminal(10, label = "K")
+        S.addProduction(UnitProduction(X))
+        X.addProduction(ConcatProduction(TX, S))
+        X.addProduction(UnitProduction(A))
+        TX.addProduction(TerminalProduction(Terminal("x")))
+        A.addProduction(UnaryOpProduction(Trim(), C))
+        C.addProduction(UnaryOpProduction(ToUpperCase(), D))
+        D.addProduction(TerminalProduction(Terminal("d")))
+        C.addProduction(UnaryOpProduction(Reverse(), E))
+        E.addProduction(UnitProduction(K))
+        E.addProduction(UnaryOpProduction(ReplaceBothKnown('f', 'x'), K))
+        K.addProduction(ConcatProduction(TF, F))
+        F.addProduction(UnitProduction(TA))
+        F.addProduction(UnitProduction(K))
+        TF.addProduction(TerminalProduction(Terminal("f")))
+        TA.addProduction(TerminalProduction(Terminal("a")))
+        listOf(A, C, D, E, F, K, TF, TA, S, X).forEach { g.addNonterminal(it) }
+        g.startNonterminal = S
+        println("Initial grammar: ${g.printGrammar()}")
+
+        CharSetApproximation(g).approximate()
+        println("After CharSet Approximation:\n${g.printGrammar()}")
+
+        RegularApproximation(g, setOf(0)).approximate()
+        println("After Regular Approximation:\n${g.printGrammar()}")
+
+        val nfa = GrammarToNFA(g).makeFA(applyOperations = true)
         println("NFA:\n${nfa.toDotString().replace("\\Q", "").replace("\\E", "")}")
 
         val pattern = nfa.toRegex()

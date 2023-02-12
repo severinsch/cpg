@@ -1,5 +1,5 @@
 import java.sql.*;
-public class Tricky
+public class Main
 {
   public static void main(String[] args){
         int x = 0;

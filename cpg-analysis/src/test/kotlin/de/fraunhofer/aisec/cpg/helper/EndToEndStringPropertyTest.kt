@@ -41,6 +41,9 @@ import de.fraunhofer.aisec.cpg.passes.StringPropertyHotspots
 import de.fraunhofer.aisec.cpg.passes.StringPropertyPass
 import java.nio.file.Path
 import kotlin.test.assertNotNull
+import kotlin.time.ExperimentalTime
+import kotlin.time.measureTime
+import kotlin.time.measureTimedValue
 import org.junit.jupiter.api.*
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
@@ -99,6 +102,7 @@ class EndToEndStringPropertyTest {
         assert(regex.matches("nbcnbc1"))
     }
 
+    @OptIn(ExperimentalTime::class)
     @Test
     fun trickyTest() {
         val hotspot_node =
@@ -107,12 +111,12 @@ class EndToEndStringPropertyTest {
             }
         assertNotNull(hotspot_node)
 
-        val grammar = createGrammar(hotspot_node)
+        val (grammar, grammarCreationDuration) = measureTimedValue { createGrammar(hotspot_node) }
         println("CREATED GRAMMAR:\n${grammar.printGrammar()}")
 
-        CharSetApproximation(grammar).approximate()
+        val charsetApproxDuration = measureTime { CharSetApproximation(grammar).approximate() }
 
-        RegularApproximation(grammar).approximate()
+        val regularApproxDuration = measureTime { RegularApproximation(grammar).approximate() }
 
         val nProds = grammar.getAllNonterminals().flatMap { it.productions }.size
         println(
@@ -123,13 +127,14 @@ class EndToEndStringPropertyTest {
         // println("GRAMMAR GRAPH REG APPROX:\n${grammarGraph.replace("\\Q", "").replace("\\E",
         // "")}")
 
-        val automaton = GrammarToNFA(grammar).makeFA()
+        val (automaton, automatonCreationDuration) =
+            measureTimedValue { GrammarToNFA(grammar).makeFA() }
         println("AUTOMATON:\n${automaton.toDotString().replace("\\Q", "").replace("\\E", "")}")
 
         val dfa = NFA(automaton.toDfa().states)
         println("DFA:\n${dfa.toDotString().replace("\\Q", "").replace("\\E", "")}")
 
-        val pattern = automaton.toRegex()
+        val (pattern, toRegexDuration) = measureTimedValue { automaton.toRegex() }
         println("REGEX PATTERN:\n${pattern}\n${prettyPrintPattern(pattern)}")
 
         val dfaPattern = dfa.toRegex()
@@ -138,6 +143,16 @@ class EndToEndStringPropertyTest {
         val regex = Regex(pattern)
         assert(regex.matches("(0+1)"))
         assert(regex.matches("((((1*12)*3)*123)"))
+
+        val total =
+            grammarCreationDuration +
+                charsetApproxDuration +
+                regularApproxDuration +
+                automatonCreationDuration +
+                toRegexDuration
+        println(
+            "\nTIMES: GRAMMAR CREATION: $grammarCreationDuration, CHARSET APPROXIMATION: $charsetApproxDuration, REGULAR APPROXIMATION: $regularApproxDuration, AUTOMATON CREATION: $automatonCreationDuration, TO REGEX: $toRegexDuration\nTOTAL: $total"
+        )
     }
 
     @Test
