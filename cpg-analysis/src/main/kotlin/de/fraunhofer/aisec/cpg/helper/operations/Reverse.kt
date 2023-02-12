@@ -57,34 +57,20 @@ class Reverse : Operation(1) {
             }
 
         val endStates = subAutomatonStates.filter { s -> s.outgoingEdges.isEmpty() }
-        val newStart = automaton.addState()
 
         startState.isStart = false
-        startState.isAcceptingState = endStates.any { it.isAcceptingState } // TODO ?
-
-        endStates.forEach { newStart.addEdge(Edge("ε", nextState = it)) }
-
-        println(
-            "Reverse subautomaton start state: $startState, end states: $endStates, new start state: $newStart"
-        )
-        println(
-            "Subautomaton:\n${NFA(subAutomatonStates + newStart).toDotString().replace("\\Q", "").replace("\\E", "")}\n"
-        )
+        startState.isAcceptingState = endStates.any { it.isAcceptingState }
 
         // reverse edges in subautomaton
         val oldEdges = subAutomatonStates.flatMap { s -> s.outgoingEdges.map { s to it } }
         subAutomatonStates.forEach { it.outgoingEdges = emptySet() }
         for ((from, edge) in oldEdges) {
-            val newEdge = edge.copy(nextState = from)
+            val newEdge = edge.copy(nextState = from, op = if (edge.op.contains("\\Q")) edge.op.reversed() else edge.op)
             edge.nextState.addEdge(newEdge)
         }
-        val subAutomaton = NFA(subAutomatonStates + newStart)
-        println(
-            "Reverse Subautomaton:\n${subAutomaton.toDotString().replace("\\Q", "").replace("\\E", "")}\n"
-        )
 
         // put reversed automaton into original automaton
-
+        // connect states that had edges to old start to endStates (which are the new start states)
         automaton.states
             .filter { it !in subAutomatonStates }
             .forEach { s ->
@@ -95,26 +81,27 @@ class Reverse : Operation(1) {
                         }
                         .flatMap { e ->
                             if (stateMap[e.nextState] == startState) {
-                                return@flatMap listOf(e, e.copy(nextState = newStart))
+                                return@flatMap endStates.map { endState ->
+                                    e.copy(nextState = endState)
+                                } + e
                             }
                             return@flatMap listOf(e)
                         }
                         .toSet()
             }
-        if (automaton.states.first { it.isStart } in affectedStates) {
-            automaton.states.first { it.isStart }.addEdge(Edge("ε", nextState = newStart))
+
+        // when the start state is affected, the code above doesn't correctly connect the old start
+        // state to the subautomaton
+        when (val s = automaton.states.first { it.isStart }) {
+            in affectedStates -> {
+                endStates.forEach { s.addEdge(Edge("ε", nextState = it)) }
+            }
         }
-        // edges from original start state to original targets of end states
+
+        // edges from start state (which is now at the end) to original targets of end states
         automaton.states
             .filter { stateMap[it] in endStates }
             .forEach { startState.addEdge(Edge("ε", nextState = it)) }
-
-        val origStartOutgoing =
-            automaton.states
-                .first { stateMap[it] == startState }
-                .outgoingEdges
-                .filter { it.taints.none { t -> t.operation == this } }
-        origStartOutgoing.forEach { newStart.addEdge(it) }
 
         // remove unreachable states in resulting automaton
         val reachableStatesNFA =

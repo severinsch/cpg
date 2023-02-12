@@ -151,4 +151,34 @@ class OperationTest {
         val pattern = nfa.toRegex()
         println("Pattern: ${prettyPrintPattern(pattern)}")
     }
+
+    @Test
+    fun exampleReverse() {
+
+        val grammarDefinition =
+            """
+            S -> A
+            S -> reverse(B)
+            A -> aA
+            A -> c
+            B -> bB
+            B -> c
+        """.trimIndent()
+
+        val g = grammarStringToGrammar(grammarDefinition)
+
+        println("Initial grammar: ${g.printGrammar()}")
+
+        CharSetApproximation(g).approximate()
+        RegularApproximation(g, setOf(0)).approximate()
+
+        val nfaNoOps = GrammarToNFA(g).makeFA(applyOperations = false)
+        println("NFA (no ops):\n${nfaNoOps.toDotString().replace("\\Q", "").replace("\\E", "")}")
+
+        val nfa = GrammarToNFA(g).makeFA(applyOperations = true)
+        println("NFA:\n${nfa.toDotString().replace("\\Q", "").replace("\\E", "")}")
+
+        val pattern = nfa.toRegex()
+        println("Pattern: ${prettyPrintPattern(pattern)}")
+    }
 }
