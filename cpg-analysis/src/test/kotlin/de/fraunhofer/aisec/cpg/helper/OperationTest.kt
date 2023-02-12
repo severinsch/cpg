@@ -107,14 +107,13 @@ class OperationTest {
         """.trimIndent()
 
         val g = grammarStringToGrammar(grammarDefinition)
-
         println("Initial grammar:\n${g.printGrammar()}")
 
         CharSetApproximation(g).approximate()
-        println("After CharSet Approximation:\n${g.printGrammar()}")
-
         RegularApproximation(g, setOf(0)).approximate()
-        println("After Regular Approximation:\n${g.printGrammar()}")
+
+        val nfaNoOps = GrammarToNFA(g).makeFA(applyOperations = false)
+        println("NFA (no ops):\n${nfaNoOps.toDotString().replace("\\Q", "").replace("\\E", "")}")
 
         val nfa = GrammarToNFA(g).makeFA(applyOperations = true)
         println("NFA:\n${nfa.toDotString().replace("\\Q", "").replace("\\E", "")}")

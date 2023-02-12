@@ -40,9 +40,10 @@ fun prettyPrintPattern(pattern: String): String {
  * Format of the grammar:
  * - {single NT} "->" {single symbol} ("|" {single symbol} {single symbol})
  * - Example:
+ * ```
  *      - S -> Ab
  *      - A -> Sa | a
- *
+ * ```
  * The following operation productions are supported.
  * - `A -> replace[a,b](B)`
  * - `A -> reverse(B)`
@@ -51,7 +52,7 @@ fun prettyPrintPattern(pattern: String): String {
  * - `A -> toLowerCase(B)`
  */
 fun grammarStringToGrammar(grammarString: String): Grammar {
-    val operationRegex = Regex("(?<op>[^\\[(]+)(\\[(?<opArgs>[^]]+)])?\\((?<arg>[^)]+)\\)")
+    val operationRegex = Regex("(?<op>[^\\[(]+)(?:\\[(?<opArgs>[^]]+)])?\\((?<arg>[^)]+)\\)")
 
     val grammar = Grammar()
     val lines = grammarString.split("\n")
