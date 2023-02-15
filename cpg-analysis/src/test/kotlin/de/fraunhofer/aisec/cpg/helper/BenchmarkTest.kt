@@ -126,7 +126,7 @@ class BenchmarkTest {
             return inputs
         }
 
-        val inputs = listOf("s01", "s02", "s03", "s04").flatMap { getInputs(it) }.take(1)
+        val inputs = listOf("s01", "s02", "s03", "s04").flatMap { getInputs(it) }
 
         println("Got ${inputs.size} test cases totaling ${inputs.sumOf { it.files.size }} files")
         val results = performBenchmarks(inputs, topPath, printResults = true)
