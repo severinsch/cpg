@@ -28,7 +28,6 @@ package de.fraunhofer.aisec.cpg.helper
 import de.fraunhofer.aisec.cpg.TestUtils
 import de.fraunhofer.aisec.cpg.TranslationManager
 import de.fraunhofer.aisec.cpg.frontends.java.JavaLanguage
-import de.fraunhofer.aisec.cpg.graph.declarations.TranslationUnitDeclaration
 import de.fraunhofer.aisec.cpg.graph.statements.expressions.Expression
 import de.fraunhofer.aisec.cpg.helper.approximations.CharSetApproximation
 import de.fraunhofer.aisec.cpg.helper.approximations.RegularApproximation
@@ -41,6 +40,7 @@ import java.io.File
 import java.io.FileOutputStream
 import java.io.OutputStream
 import java.nio.file.Path
+import kotlin.io.path.deleteExisting
 import kotlin.io.path.listDirectoryEntries
 import kotlin.time.Duration
 import kotlin.time.ExperimentalTime
@@ -61,7 +61,6 @@ data class TestInput(
 data class TestResult(
     val name: String,
     val error: Boolean,
-    val node: Expression?,
     val result: TestData?,
 )
 
@@ -120,7 +119,6 @@ class BenchmarkTest {
                         files = files,
                         hotspotType = StringPropertyHotspots.HotspotType.DATABASE,
                         analyzeAllHotspots = true,
-                        subdirectory = subdir,
                     )
                 }
             return inputs
@@ -129,7 +127,7 @@ class BenchmarkTest {
         val inputs = listOf("s01", "s02", "s03", "s04").flatMap { getInputs(it) }
 
         println("Got ${inputs.size} test cases totaling ${inputs.sumOf { it.files.size }} files")
-        val results = performBenchmarks(inputs, topPath, printResults = true)
+        val results = performBenchmarks(inputs, printResults = true)
         println("Got ${results.size} results")
 
         FileOutputStream("juliet_benchmarks.csv").use { it.writeCsv(results) }
@@ -206,19 +204,34 @@ class BenchmarkTest {
                     hotspotType = StringPropertyHotspots.HotspotType.DATABASE,
                 ),
             )
-        performBenchmarks(inputs, path)
+        performBenchmarks(inputs)
     }
 
     private fun performBenchmarks(
         inputs: List<TestInput>,
-        path: Path,
         printResults: Boolean = true
     ): List<TestResult> {
+        val newPath = Path.of("/tmp", "string_properties_benchmarks")
         val results: MutableList<TestResult> = mutableListOf()
 
         for (input in inputs) {
             StringPropertyHotspots.clear()
-            buildCPG(input.files, path, input.subdirectory)
+            if (input.files.isEmpty()) {
+                println("Skipping ${input.name} because no files were found")
+                results += TestResult(input.name, true, null)
+                continue
+            }
+            // this is needed because CPG creation scans all files in the directory and the large
+            // directories lead to errors
+            // therefore we copy the relevant files to a new directory, build the CPG there and then
+            // delete the files again
+            val newFiles =
+                input.files.map {
+                    val newFile = newPath.resolve(it.name).toFile()
+                    return@map it.copyTo(newFile, overwrite = true)
+                }
+            buildCPG(newFiles, newPath)
+            newPath.listDirectoryEntries().forEach { it.deleteExisting() }
 
             if (input.analyzeAllHotspots) {
                 println("Analyzing all hotspots for ${input.name}")
@@ -238,7 +251,6 @@ class BenchmarkTest {
                         TestResult(
                             "${input.name}[node ${hotspot.id} at ${hotspot.location}]",
                             false,
-                            hotspot,
                             data
                         )
                 }
@@ -262,13 +274,13 @@ class BenchmarkTest {
                                 ?: true
                     }
                 if (node == null) {
-                    results += TestResult(input.name, true, null, null)
+                    results += TestResult(input.name, true, null)
                     println("Could not find node for input $input")
                     continue
                 }
 
                 val data = analyzeNode(node)
-                results += TestResult(input.name, false, node, data)
+                results += TestResult(input.name, false, data)
             }
         }
         if (printResults) {
@@ -278,21 +290,14 @@ class BenchmarkTest {
         return results
     }
 
-    private fun buildCPG(
-        files: List<File>,
-        path: Path,
-        subdir: String
-    ): TranslationUnitDeclaration {
+    private fun buildCPG(files: List<File>, path: Path) {
         TranslationManager.builder().build().analyze()
-        val fullPath = path.resolve(subdir)
-        val tu =
-            TestUtils.analyzeAndGetFirstTU(files, fullPath, true) {
-                it.registerLanguage<JavaLanguage>()
-                    .registerPass(IdentifierPass())
-                    .registerPass(EdgeCachePass())
-                    .registerPass(StringPropertyPass())
-            }
-        return tu
+        TestUtils.analyzeAndGetFirstTU(files, path, true) {
+            it.registerLanguage<JavaLanguage>()
+                .registerPass(IdentifierPass())
+                .registerPass(EdgeCachePass())
+                .registerPass(StringPropertyPass())
+        }
     }
 
     @OptIn(ExperimentalTime::class)
