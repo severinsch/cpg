@@ -66,9 +66,6 @@ class GrammarToNFA(val grammar: Grammar) {
         val start = automaton.addState(isStart = true)
         val end = automaton.addState(isAcceptingState = true)
         val taints = nederhofMakeFA(start, listOf(grammar.startNonterminal!!), end)
-        println(
-            "Taints: ${taints.joinToString(separator = ";", prefix = "{", postfix = "}") { it.operation.toString() }}"
-        )
         if (applyOperations) {
             taints.asReversed().forEach { taint -> resolveOperation(taint) }
         }

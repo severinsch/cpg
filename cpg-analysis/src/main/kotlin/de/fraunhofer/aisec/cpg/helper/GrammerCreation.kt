@@ -63,8 +63,8 @@ fun createGrammar(node: Node): Grammar {
     return cfg
 }
 
-fun handle(node: Node?, cfg: Grammar) {
-    println("${node?.id!!}: ${node.name} at ${node.location.toString()}")
+fun handle(node: Node, cfg: Grammar) {
+    // println("${node?.id!!}: ${node.name} at ${node.location.toString()}")
     when (node) {
         is ArrayCreationExpression -> TODO()
         is ArraySubscriptionExpression -> TODO()
@@ -91,7 +91,7 @@ fun handle(node: Node?, cfg: Grammar) {
 }
 
 private fun handleDefault(node: Node, cfg: Grammar) {
-    println("default handled node ${node.javaClass.name} (id: ${node.id}) at ${node.location}")
+    // println("default handled node ${node.javaClass.name} (id: ${node.id}) at ${node.location}")
     val nt = cfg.getOrCreateNonterminal(node.id!!)
 
     if (node.prevDFG.isEmpty()) {
@@ -165,7 +165,7 @@ private fun handleParamVariableDeclaration(node: ParamVariableDeclaration, cfg: 
 
 private fun handleLiteral(node: Literal<*>, cfg: Grammar) {
     val nt = cfg.getOrCreateNonterminal(node.id!!)
-    nt.addProduction(TerminalProduction(Terminal(node.value)))
+    nt.addProduction(TerminalProduction(Terminal(node.value ?: "null")))
     cfg.addNonterminal(nt)
 }
 

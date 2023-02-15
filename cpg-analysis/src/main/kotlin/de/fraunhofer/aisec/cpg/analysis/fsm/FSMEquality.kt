@@ -33,6 +33,7 @@ private fun toNewDfa(fsm: FSM) =
     when (fsm) {
         is NFA -> fsm.toDfa()
         is DFA -> fsm.deepCopy() // make sure to create a deep copy to not alter the passed
+        else -> throw IllegalArgumentException("Cannot convert FSM to DFA")
     // object when changing the state names in [acceptsSameLanguage]
     }
 
