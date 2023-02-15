@@ -97,7 +97,7 @@ class StringPropertyPass : Pass() {
                 if (
                     node.fqn?.matches(
                         Regex(
-                            "java\\.sql\\.(?:(?:Callable|Prepared)?Statement\\.execute.*|Connection\\.prepare.*)"
+                            "java\\.sql\\.(?:(?:Callable|Prepared)?Statement\\.(execute.*|addBatch)|Connection\\.prepare.*)"
                         )
                     ) == true && node.arguments.isNotEmpty()
                 ) {

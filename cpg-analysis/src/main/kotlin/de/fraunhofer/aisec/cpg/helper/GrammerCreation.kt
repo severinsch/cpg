@@ -66,9 +66,9 @@ fun createGrammar(node: Node): Grammar {
 fun handle(node: Node, cfg: Grammar) {
     // println("${node?.id!!}: ${node.name} at ${node.location.toString()}")
     when (node) {
-        is ArrayCreationExpression -> TODO()
-        is ArraySubscriptionExpression -> TODO()
-        is ExpressionList -> TODO()
+        // is ArrayCreationExpression -> TODO()
+        is ArraySubscriptionExpression -> handleArraySubscriptionExpression(node, cfg)
+        // is ExpressionList -> TODO()
         // these should be handled by the defaultHandler, double check to make sure
         // is ConditionalExpression -> TODO()
         // is MemberExpression -> TODO()
@@ -102,6 +102,12 @@ private fun handleDefault(node: Node, cfg: Grammar) {
         nt.addProduction(UnitProduction(dataSourceNT))
     }
     cfg.addNonterminal(nt)
+}
+
+fun handleArraySubscriptionExpression(node: ArraySubscriptionExpression, cfg: Grammar) {
+    // TODO handle array subscript?
+    val nt = cfg.getOrCreateNonterminal(node.id!!)
+    nt.addProduction(TerminalProduction(Terminal(node.type)))
 }
 
 private fun handleNewExpression(node: NewExpression, cfg: Grammar) {
