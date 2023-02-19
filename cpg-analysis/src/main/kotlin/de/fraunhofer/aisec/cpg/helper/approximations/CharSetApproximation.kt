@@ -99,20 +99,7 @@ class CharSetApproximation(private val grammar: Grammar) {
      * [Nonterminal]
      */
     private fun replaceOperationProduction(prod: OperationProduction, nt: Nonterminal) {
-        val charset: CharSet =
-            when (prod) {
-                is UnaryOpProduction -> {
-                    val oldCharset = charsets[prod.target1]
-                    // TODO improve this
-                    prod.op.charsetTransformation(oldCharset!!)
-                }
-                is BinaryOpProduction -> {
-                    val oldCharset1 = charsets[prod.target1]
-                    val oldCharset2 = charsets[prod.target2]
-                    // TODO improve this
-                    prod.op.charsetTransformation(oldCharset1!!, oldCharset2!!)
-                }
-            }
+        val charset: CharSet = prod.op.charsetTransformation(charsets[prod.target1]!!)
         nt.productions.remove(prod)
         val terminal = Terminal(charset.toRegexPattern(), charset, isLiteral = false)
         nt.productions.add(TerminalProduction(terminal))
@@ -127,9 +114,7 @@ class CharSetApproximation(private val grammar: Grammar) {
     private fun Component.detectOperationCycle(prod: Production): Boolean {
         contract { returns(true) implies (prod is OperationProduction) }
         return when (prod) {
-            is UnaryOpProduction -> prod.target1 in this.nonterminals
-            is BinaryOpProduction ->
-                prod.target1 in this.nonterminals || prod.target2 in this.nonterminals
+            is OperationProduction -> prod.target1 in this.nonterminals
             else -> false
         }
     }
@@ -179,14 +164,8 @@ class CharSetApproximation(private val grammar: Grammar) {
             is UnitProduction -> {
                 charsets.getOrDefault(prod.target1, CharSet.empty())
             }
-            is UnaryOpProduction -> {
+            is OperationProduction -> {
                 prod.op.charsetTransformation(charsets.getOrDefault(prod.target1, CharSet.empty()))
-            }
-            is BinaryOpProduction -> {
-                prod.op.charsetTransformation(
-                    charsets.getOrDefault(prod.target1, CharSet.empty()),
-                    charsets.getOrDefault(prod.target2, CharSet.empty()),
-                )
             }
             is ConcatProduction -> {
                 charsets.getOrDefault(prod.target1, CharSet.empty()) union

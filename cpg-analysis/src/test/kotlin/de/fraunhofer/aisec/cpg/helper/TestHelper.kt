@@ -84,7 +84,7 @@ fun grammarStringToGrammar(grammarString: String): Grammar {
                     "tolowercase" -> ToLowerCase()
                     else -> throw IllegalArgumentException("Unknown operation: $prod")
                 }
-            left.addProduction(UnaryOpProduction(operation, argNT))
+            left.addProduction(OperationProduction(operation, argNT))
         }
     }
 

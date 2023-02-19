@@ -42,8 +42,7 @@ fun Production.getAllTargetSymbols(): Pair<List<Symbol>, OperationTaint?> {
         is TerminalProduction -> Pair(listOf(this.terminal), null)
         is ConcatProduction -> Pair(listOf(this.target1, this.target2), null)
         is UnitProduction -> Pair(listOf(this.target1), null)
-        is UnaryOpProduction -> Pair(listOf(this.target1), OperationTaint(this.op))
-        is BinaryOpProduction -> Pair(listOf(this.target1, this.target2), OperationTaint(this.op))
+        is OperationProduction -> Pair(listOf(this.target1), OperationTaint(this.op))
     }
 }
 

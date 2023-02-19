@@ -215,7 +215,6 @@ private fun handleBinaryOp(node: BinaryOperator, cfg: Grammar) {
     val nt = cfg.getOrCreateNonterminal(node.id!!)
 
     nt.addProduction(createOperationProduction(node, cfg))
-    // nt.addProduction(BinaryOpProduction(node.operatorCode, lhs.id!!, rhs.id!!))
 
     cfg.addNonterminal(nt)
 }

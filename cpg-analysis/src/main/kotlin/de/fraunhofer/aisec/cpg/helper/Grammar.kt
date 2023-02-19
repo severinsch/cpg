@@ -126,8 +126,7 @@ class Grammar(private val nonterminals: HashMap<Long, Nonterminal> = hashMapOf()
                     when (p) {
                         is TerminalProduction -> "\"${p.terminal.value}\""
                         is UnitProduction -> p.target1.label
-                        is UnaryOpProduction -> "${p.op}(${p.target1.label})"
-                        is BinaryOpProduction -> "${p.op}(${p.target1.label}, ${p.target2.label})"
+                        is OperationProduction -> "${p.op}(${p.target1.label})"
                         is ConcatProduction -> "${p.target1.label} ${p.target2.label}"
                     }
             }

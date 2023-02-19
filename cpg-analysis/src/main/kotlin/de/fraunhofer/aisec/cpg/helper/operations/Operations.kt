@@ -67,14 +67,14 @@ fun createOperationProduction(node: CallExpression, cfg: Grammar): Production {
                 "touppercase" -> ToUpperCase()
                 else -> throw IllegalStateException("Unreachable")
             }
-        return UnaryOpProduction(operation, baseNT)
+        return OperationProduction(operation, baseNT)
     }
     if (name in setOf("concat")) {
         val argNT = cfg.getOrCreateNonterminal(node.arguments.first().id)
         return ConcatProduction(baseNT, argNT)
     }
     if (name in setOf("repeat")) {
-        return UnaryOpProduction(Repeat(node, node.arguments.first()), baseNT)
+        return OperationProduction(Repeat(node, node.arguments.first()), baseNT)
     }
     return TerminalProduction(Terminal.anything())
 }
@@ -94,7 +94,7 @@ fun createOperationProduction(node: BinaryOperator, cfg: Grammar): Production {
                 if (node.lhs?.type?.typeName?.lowercase()?.contains("int") == true)
                     arrayOf(node.lhs, node.rhs)
                 else arrayOf(node.rhs, node.lhs)
-            return UnaryOpProduction(Repeat(node, amount), cfg.getOrCreateNonterminal(arg.id))
+            return OperationProduction(Repeat(node, amount), cfg.getOrCreateNonterminal(arg.id))
         }
     }
     return TerminalProduction(Terminal.anything())

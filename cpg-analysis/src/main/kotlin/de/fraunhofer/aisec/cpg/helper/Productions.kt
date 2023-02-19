@@ -33,7 +33,7 @@ import de.fraunhofer.aisec.cpg.helper.operations.Operation
 /*
     this interface structure groups productions in groups to allow the following features
 
-    // exhaustive but still concise, focus on "how many NTs are there on the left hand side" without needing more detail
+    // exhaustive but still concise, focus on "how many NTs are there on the right hand side" without needing more detail
     // for this to work, the interfaces need to be sealed
     when(production) {
         is TerminalProduction -> ...
@@ -61,14 +61,6 @@ sealed interface BinaryProduction : Production {
     val target2: Nonterminal
 }
 
-/**
- * A production with an associated [Operation] that is applied to the [Nonterminal](s) on the right
- * hand side.
- */
-sealed interface OperationProduction : Production {
-    val op: Operation
-}
-
 /** A production of type X -> [Terminal] */
 class TerminalProduction(val terminal: Terminal) : Production {
     // constructor(string_literal: String) : this(Regex.fromLiteral(string_literal))
@@ -78,19 +70,11 @@ class TerminalProduction(val terminal: Terminal) : Production {
 class UnitProduction(override val target1: Nonterminal) : UnaryProduction
 
 /** A production of type X -> op(Y). */
-class UnaryOpProduction(
-    override val op: Operation,
+class OperationProduction(
+    val op: Operation,
     override val target1: Nonterminal,
     var other_args: List<Long> = emptyList(),
-) : OperationProduction, UnaryProduction
-
-/** A production of type X -> op(Y, Z). */
-class BinaryOpProduction(
-    override val op: Operation,
-    override val target1: Nonterminal,
-    override val target2: Nonterminal,
-    var other_args: List<Long> = emptyList()
-) : OperationProduction, BinaryProduction
+) : UnaryProduction
 
 /** A production of type X -> Y Z. */
 class ConcatProduction(override val target1: Nonterminal, override val target2: Nonterminal) :

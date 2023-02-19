@@ -155,19 +155,13 @@ class RegularApproximation(private val grammar: Grammar, _hotspotIds: Set<Long> 
                     }
                 }
             }
-            is UnaryOpProduction -> {
+            is OperationProduction -> {
                 // A -> op(X)  =>  A -> R A', R -> op(X)
-                val newNT = grammar.createNewNonterminal().also { comp.nonterminals.add(it) }
-                addProduction(from = nt, ConcatProduction(newNT, primedNonterminals[nt]!!))
-                addProduction(from = nt, UnaryOpProduction(prod.op, prod.target1, prod.other_args))
-            }
-            is BinaryOpProduction -> {
-                // A -> op2(X,Y)  =>  A -> R A', R -> op2(X,Y)
                 val newNT = grammar.createNewNonterminal().also { comp.nonterminals.add(it) }
                 addProduction(from = nt, ConcatProduction(newNT, primedNonterminals[nt]!!))
                 addProduction(
                     from = nt,
-                    BinaryOpProduction(prod.op, prod.target1, prod.target2, prod.other_args)
+                    OperationProduction(prod.op, prod.target1, prod.other_args)
                 )
             }
             is TerminalProduction -> {
