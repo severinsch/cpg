@@ -167,17 +167,7 @@ class SetCharSet(val chars: MutableSet<Char> = mutableSetOf()) : CharSet {
         if (chars.isEmpty()) {
             return ""
         }
-        // TODO use character class here?
-        var res = ""
-        var relevantChars = chars.toSet()
-        val digits = ('0'..'9').toSet()
-        if (relevantChars.containsAll(digits)) {
-            // TODO only add | if remaining chars
-            res += "\\d|"
-            relevantChars = relevantChars - digits
-        }
-        res += relevantChars.joinToString(separator = "|") { c -> c.toString() }
-        return "(?:$res)*"
+        return "[${chars.joinToString(separator = "")}]*"
     }
 
     override fun equals(other: Any?): Boolean {

@@ -25,6 +25,7 @@
  */
 package de.fraunhofer.aisec.cpg.helper.operations
 
+import de.fraunhofer.aisec.cpg.analysis.fsm.Edge
 import de.fraunhofer.aisec.cpg.analysis.fsm.NFA
 import de.fraunhofer.aisec.cpg.analysis.fsm.State
 import de.fraunhofer.aisec.cpg.graph.Node
@@ -63,16 +64,58 @@ class ReplaceBothKnown(val old: Char, val new: Char) : Operation(4) {
                         if (edge.taints.none { it.operation == this }) {
                             return@map edge
                         }
-                        if (!edge.op.contains(old)) {
-                            return@map edge
-                        }
                         if (!edge.op.contains("\\Q")) {
+                            return@map handleRegex(edge)
+                        }
+                        if (!edge.op.contains(old)) {
                             return@map edge
                         }
                         return@map edge.copy(op = edge.op.replace(old, new))
                     }
                     .toSet()
         }
+    }
+
+    private fun handleRegex(edge: Edge): Edge {
+        // TODO this is not very good, a better way would be converting the regex to some format
+        // that's easier to manipulate (e.g. automaton)
+        // this also doesn't handle all cases, e.g. character classes with ranges are not handled
+        // correctly
+        // however, as currently all regular expressions are created by our code, this should be
+        // fine for now
+        var op = edge.op
+        val positiveCharClassRegex = Regex("([^\\\\]|^)\\[([^]^]*)]")
+        op =
+            op.replace(positiveCharClassRegex) {
+                val (before, content) = it.destructured
+                return@replace "$before[${content.replace(old, new)}]"
+            }
+
+        val negativeCharClassRegex = Regex("([^\\\\]|^)\\[(\\^[^]]*)]")
+        op =
+            op.replace(negativeCharClassRegex) {
+                // "[^aby].replace('x', 'y')" -> "[^abx]"
+                // "[^abx].replace('x', 'y')" -> "[^abx]"
+                // "[^ab].replace('x', 'y')" -> "[^abx]"
+                // "[^abxy].replace('x', 'y')" -> "[^abxy]"
+                var (before, content) = it.destructured
+                if (!(content.contains(new) && content.contains(old))) {
+                    // all cases except the last one
+                    content = content.replace(new.toString(), "")
+                }
+                content += old
+
+                return@replace "$before[$content]"
+            }
+
+        val wildcardRegex = Regex("([^\\\\]|^)(\\.)")
+        op =
+            op.replace(wildcardRegex) {
+                val (before, _) = it.destructured
+                return@replace "$before[^$old]"
+            }
+
+        return edge.copy(op = op)
     }
 
     override fun toString(): String {
