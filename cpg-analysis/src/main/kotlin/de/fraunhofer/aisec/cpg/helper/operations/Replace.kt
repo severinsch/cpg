@@ -85,12 +85,18 @@ class ReplaceBothKnown(val old: Char, val new: Char) : Operation(4) {
         // fine for now
         var op = edge.op
         val positiveCharClassRegex = Regex("([^\\\\]|^)\\[([^]^]*)]")
+        // '-', '[' and ']' are special characters in character classes, so we need to escape them
+        val escapedOld = if (old in listOf('-', '[', ']')) "\\$old" else old.toString()
+        val escapedNew = if (new in listOf('-', '[', ']')) "\\$new" else new.toString()
+
+        // handle character classes
         op =
             op.replace(positiveCharClassRegex) {
                 val (before, content) = it.destructured
-                return@replace "$before[${content.replace(old, new)}]"
+                return@replace "$before[${content.replace(escapedOld, escapedNew).replace(old.toString(), escapedNew)}]"
             }
 
+        // handle negative character classes
         val negativeCharClassRegex = Regex("([^\\\\]|^)\\[(\\^[^]]*)]")
         op =
             op.replace(negativeCharClassRegex) {
@@ -101,18 +107,19 @@ class ReplaceBothKnown(val old: Char, val new: Char) : Operation(4) {
                 var (before, content) = it.destructured
                 if (!(content.contains(new) && content.contains(old))) {
                     // all cases except the last one
-                    content = content.replace(new.toString(), "")
+                    content = content.replace(escapedNew, "").replace(new.toString(), "")
                 }
-                content += old
+                content += escapedOld
 
                 return@replace "$before[$content]"
             }
 
+        // handle wildcards
         val wildcardRegex = Regex("([^\\\\]|^)(\\.)")
         op =
             op.replace(wildcardRegex) {
                 val (before, _) = it.destructured
-                return@replace "$before[^$old]"
+                return@replace "$before[^${escapedOld}]"
             }
 
         return edge.copy(op = op)

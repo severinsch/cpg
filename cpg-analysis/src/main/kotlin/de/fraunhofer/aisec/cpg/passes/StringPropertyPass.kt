@@ -94,7 +94,6 @@ class StringPropertyPass : Pass() {
                         StringPropertyHotspots.HotspotType.PRINT
                     )
                 }
-                println("CallExpression: ${node.fqn} ${node.arguments}")
                 if (
                     node.fqn?.matches(
                         Regex(
@@ -102,7 +101,6 @@ class StringPropertyPass : Pass() {
                         )
                     ) == true && node.arguments.isNotEmpty()
                 ) {
-                    println("matches")
                     StringPropertyHotspots.addHotspot(
                         node.arguments.first(),
                         StringPropertyHotspots.HotspotType.DATABASE
