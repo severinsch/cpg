@@ -144,10 +144,15 @@ class BenchmarkTest {
         // even though we copy the files to a temporary directory, CPG creation still runs into an
         // endless loop/OOM at some point?
         // workaround: split these inputs into batches of 200 and manually run them separately
-        val inputs = listOf("s01", "s02", "s03", "s04").flatMap { getInputs(it) }
+        val batch = 1
+        val inputs =
+            listOf("s01", "s02", "s03", "s04")
+                .flatMap { getInputs(it) }
+                .drop(200 * (batch - 1))
+                .take(200)
 
         println("Got ${inputs.size} test cases totaling ${inputs.sumOf { it.files.size }} files")
-        val julietFileWriter = FileOutputStream("juliet.csv").bufferedWriter()
+        val julietFileWriter = FileOutputStream("juliet_$batch.csv").bufferedWriter()
         julietFileWriter.write(TestResult.csvHeader)
         julietFileWriter.flush()
         performBenchmarks(inputs) { julietFileWriter.writeCsvRow(it) }
@@ -175,13 +180,24 @@ class BenchmarkTest {
                 nodeName = "res",
                 lineNumber = 14,
             )
+        val databaseSanitization =
+            TestInput(
+                name = "DatabaseSanitization",
+                files = listOf("DatabaseSanitization.java").map { path.resolve(it).toFile() },
+                hotspotType = StringPropertyHotspots.HotspotType.DATABASE,
+                lineNumber = 13,
+            )
         val trickyDfa = tricky.copy(name = "${tricky.name}_dfa", createDFA = true)
         val spDfa = stringProperties.copy(name = "${stringProperties.name}_dfa", createDFA = true)
+        val databaseDFA =
+            databaseSanitization.copy(name = "${databaseSanitization.name}_dfa", createDFA = true)
         // manually run separately for better results, just comment the other ones out
         repeatAndWrite(tricky, 100, "tricky.csv")
         repeatAndWrite(stringProperties, 100, "stringProperties.csv")
         repeatAndWrite(trickyDfa, 100, "tricky_dfa.csv")
         repeatAndWrite(spDfa, 100, "stringProperties_dfa.csv")
+        repeatAndWrite(databaseSanitization, 100, "databaseSanitization.csv")
+        repeatAndWrite(databaseDFA, 100, "databaseSanitization_dfa.csv")
     }
 
     private fun repeatAndWrite(input: TestInput, times: Int, fileName: String) {
@@ -268,6 +284,12 @@ class BenchmarkTest {
                     lineNumber = 39,
                     hotspotType = StringPropertyHotspots.HotspotType.DATABASE,
                 ),
+                TestInput(
+                    name = "DatabaseSanitization",
+                    files = listOf("DatabaseSanitization.java").map { path.resolve(it).toFile() },
+                    hotspotType = StringPropertyHotspots.HotspotType.DATABASE,
+                    lineNumber = 13,
+                )
             )
         performBenchmarks(inputs, resultAcceptor = ::printResult)
     }
