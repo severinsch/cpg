@@ -48,10 +48,21 @@ class CharSetApproximation(private val grammar: Grammar) {
         // successors of the component have been processed.
         // This in turn is important, because the fixpoint computation uses the updateCharsets
         // function, which uses the charsets of the successors of the given Nonterminal.
+        if (!containsOperationCycle()) {
+            return
+        }
         for (comp in scc.components) {
             findCharSets(comp)
         }
         breakCycles()
+    }
+
+    private fun containsOperationCycle(): Boolean {
+        return scc.components.any { comp ->
+            comp.nonterminals.any { nt ->
+                nt.productions.any { prod -> comp.detectOperationCycle(prod) }
+            }
+        }
     }
 
     private fun breakCycles() {
