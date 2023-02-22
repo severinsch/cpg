@@ -40,14 +40,17 @@ class ReplaceNoneKnown(val node: Node, val old: Node, val new: Node) : Operation
     override fun toString(): String {
         return "replace[<${old.id}>, <${new.id}>]"
     }
+
+    override fun charsetTransformation(cs: CharSet): CharSet {
+        return CharSet.sigma()
+    }
 }
 
 class ReplaceBothKnown(val old: Char, val new: Char) : Operation(4) {
 
     override fun charsetTransformation(cs: CharSet): CharSet {
         if (old in cs) {
-            // TODO does this make a copy
-            val newCS = cs
+            val newCS = cs.copy()
             newCS.remove(old)
             newCS.add(new)
             return newCS
@@ -56,7 +59,6 @@ class ReplaceBothKnown(val old: Char, val new: Char) : Operation(4) {
     }
 
     override fun regularApproximation(automaton: NFA, affectedStates: List<State>) {
-        // TODO: handle case where old or new is regex special character
         affectedStates.forEach { state ->
             state.outgoingEdges =
                 state.outgoingEdges
@@ -137,7 +139,7 @@ class ReplaceOldKnown(val old: Char, val new: Node) : Operation(3) {
         if (old in cs) {
             return CharSet.sigma()
         }
-        return cs
+        return cs.copy()
     }
 
     override fun toString(): String {
@@ -149,8 +151,9 @@ class ReplaceNewKnown(val old: Node, val new: Char) : Operation(2) {
 
     override fun charsetTransformation(cs: CharSet): CharSet {
         // TODO non pure problem?
-        cs.add(new)
-        return cs
+        val newCs = cs.copy()
+        newCs.add(new)
+        return newCs
     }
 
     override fun toString(): String {

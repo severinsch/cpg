@@ -115,6 +115,6 @@ class Reverse : Operation(1) {
             .forEach { automaton.removeState(it) }
     }
 
-    override fun charsetTransformation(cs: CharSet): CharSet = cs
+    override fun charsetTransformation(cs: CharSet): CharSet = cs.copy()
     override fun toString() = "reverse"
 }

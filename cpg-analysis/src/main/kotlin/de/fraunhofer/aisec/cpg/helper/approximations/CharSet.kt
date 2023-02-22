@@ -58,6 +58,7 @@ sealed interface CharSet {
     infix fun intersect(other: SetCharSet): CharSet
     fun add(c: Char)
     fun remove(c: Char)
+    fun copy(): CharSet
 
     /** Returns a [Regex] that accepts the regular language C* for a [CharSet] C. */
     fun toRegexPattern(): String
@@ -99,6 +100,10 @@ class SigmaCharSet(val removed: MutableSet<Char> = mutableSetOf()) : CharSet {
 
     override fun remove(c: Char) {
         removed.add(c)
+    }
+
+    override fun copy(): CharSet {
+        return SigmaCharSet(removed)
     }
 
     override fun toRegexPattern(): String {
@@ -161,6 +166,10 @@ class SetCharSet(val chars: MutableSet<Char> = mutableSetOf()) : CharSet {
 
     override fun remove(c: Char) {
         chars.remove(c)
+    }
+
+    override fun copy(): CharSet {
+        return SetCharSet(chars)
     }
 
     override fun toRegexPattern(): String {

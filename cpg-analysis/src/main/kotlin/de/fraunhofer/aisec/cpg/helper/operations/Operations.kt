@@ -102,9 +102,7 @@ fun createOperationProduction(node: BinaryOperator, cfg: Grammar): Production {
 
 sealed class Operation(val priority: Int) {
     // STUBS, types will change
-    open fun charsetTransformation(cs: CharSet): CharSet = cs
-    // TODO maybe replace with subclasses for BinaryOperations
-    open fun charsetTransformation(cs1: CharSet, cs2: CharSet): CharSet = cs1 union cs2
+    open fun charsetTransformation(cs: CharSet): CharSet = cs.copy()
     open fun regularApproximation(automaton: NFA, affectedStates: List<State>): Unit = TODO()
     abstract override fun toString(): String
 }
