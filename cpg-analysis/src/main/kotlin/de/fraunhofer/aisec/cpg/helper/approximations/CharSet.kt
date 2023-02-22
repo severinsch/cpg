@@ -84,12 +84,12 @@ class SigmaCharSet(val removed: MutableSet<Char> = mutableSetOf()) : CharSet {
         return SigmaCharSet((removed - other.chars).toMutableSet())
     }
 
-    // (Σ \ A) ∩ (Σ \ B) = Σ \ (A ∩ B) TODO check this
+    // (Σ \ A) ∩ (Σ \ B) = Σ \ (A ∩ B)
     override infix fun intersect(other: SigmaCharSet): SigmaCharSet {
         return SigmaCharSet((removed union other.removed).toMutableSet())
     }
 
-    // (Σ \ A) ∩ B = B \ (A ∩ Σ) = B \ A TODO check this
+    // (Σ \ A) ∩ B = B \ (A ∩ Σ) = B \ A
     override infix fun intersect(other: SetCharSet): SetCharSet {
         return SetCharSet((other.chars - removed).toMutableSet())
     }

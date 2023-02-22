@@ -101,8 +101,8 @@ fun createOperationProduction(node: BinaryOperator, cfg: Grammar): Production {
 }
 
 sealed class Operation(val priority: Int) {
-    // STUBS, types will change
-    open fun charsetTransformation(cs: CharSet): CharSet = cs.copy()
+    // unknown operation, could add any characters -> Σ
+    open fun charsetTransformation(cs: CharSet): CharSet = CharSet.sigma()
     open fun regularApproximation(automaton: NFA, affectedStates: List<State>): Unit = TODO()
     abstract override fun toString(): String
 }

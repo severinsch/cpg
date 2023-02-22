@@ -27,13 +27,20 @@ package de.fraunhofer.aisec.cpg.helper.operations
 
 import de.fraunhofer.aisec.cpg.graph.Node
 import de.fraunhofer.aisec.cpg.graph.statements.expressions.CallExpression
+import de.fraunhofer.aisec.cpg.helper.approximations.CharSet
 
 class Repeat(val node: Node, val amount: Node) : Operation(1) {
-    // for things like this the regular Approximation will maybe try to use a ValueEvaluator to
-    // get the Int value of amount and just concatenate the regex for the base n times, (base*)
+    // STUB: this is a stub for the repeat operation, the automaton transformation is not yet
+    // implemented
+    // for things like this the automaton transformation will maybe try to use a ValueEvaluator to
+    // get the Int value of amount and just concatenate the subautomaton for the base n times,
+    // (base*)
     // otherwise
 
     constructor(repeatCall: CallExpression) : this(repeatCall, repeatCall.arguments[0])
+
+    override fun charsetTransformation(cs: CharSet): CharSet = cs.copy()
+
     override fun toString(): String {
         return "repeat[${amount.id}]"
     }

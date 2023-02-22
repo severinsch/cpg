@@ -132,7 +132,6 @@ class ReplaceBothKnown(val old: Char, val new: Char) : Operation(4) {
     }
 }
 
-// TODO handle strings?
 class ReplaceOldKnown(val old: Char, val new: Node) : Operation(3) {
 
     override fun charsetTransformation(cs: CharSet): CharSet {
@@ -150,7 +149,6 @@ class ReplaceOldKnown(val old: Char, val new: Node) : Operation(3) {
 class ReplaceNewKnown(val old: Node, val new: Char) : Operation(2) {
 
     override fun charsetTransformation(cs: CharSet): CharSet {
-        // TODO non pure problem?
         val newCs = cs.copy()
         newCs.add(new)
         return newCs

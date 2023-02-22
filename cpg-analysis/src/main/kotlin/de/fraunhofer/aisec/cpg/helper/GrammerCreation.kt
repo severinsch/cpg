@@ -64,14 +64,8 @@ fun createGrammar(node: Node): Grammar {
 }
 
 fun handle(node: Node, cfg: Grammar) {
-    // println("${node?.id!!}: ${node.name} at ${node.location.toString()}")
     when (node) {
-        // is ArrayCreationExpression -> TODO()
         is ArraySubscriptionExpression -> handleArraySubscriptionExpression(node, cfg)
-        // is ExpressionList -> TODO()
-        // these should be handled by the defaultHandler, double check to make sure
-        // is ConditionalExpression -> TODO()
-        // is MemberExpression -> TODO()
         // Expressions
         is ConstructExpression -> handleConstructExpression(node, cfg)
         is CallExpression -> handleCallExpression(node, cfg)
@@ -80,7 +74,6 @@ fun handle(node: Node, cfg: Grammar) {
         is DeclaredReferenceExpression -> handleDeclaredReferenceExpression(node, cfg)
         is VariableDeclaration -> handleVariableDeclaration(node, cfg)
         // Other
-        // is Assignment -> handleAssignment(node)
         is ReturnStatement -> handleReturnStatement(node, cfg)
         is Literal<*> -> handleLiteral(node, cfg)
         is FunctionDeclaration -> handleFunctionDeclaration(node, cfg)
@@ -91,7 +84,6 @@ fun handle(node: Node, cfg: Grammar) {
 }
 
 private fun handleDefault(node: Node, cfg: Grammar) {
-    // println("default handled node ${node.javaClass.name} (id: ${node.id}) at ${node.location}")
     val nt = cfg.getOrCreateNonterminal(node.id!!)
 
     if (node.prevDFG.isEmpty()) {
@@ -105,16 +97,13 @@ private fun handleDefault(node: Node, cfg: Grammar) {
 }
 
 fun handleArraySubscriptionExpression(node: ArraySubscriptionExpression, cfg: Grammar) {
-    // TODO handle array subscript?
+    // TODO properly handle array subscript?
     val nt = cfg.getOrCreateNonterminal(node.id!!)
     nt.addProduction(TerminalProduction(Terminal(node.type)))
 }
 
 private fun handleNewExpression(node: NewExpression, cfg: Grammar) {
     val nt = cfg.getOrCreateNonterminal(node.id!!)
-    for (dataSource in node.prevDFG) {
-        println("DATA SOURCE FOR NEW EXPRESSION: $dataSource")
-    }
     val init = node.initializer // ConstructExpression for java
     if (init != null) {
         val initNT = cfg.getOrCreateNonterminal(init.id)

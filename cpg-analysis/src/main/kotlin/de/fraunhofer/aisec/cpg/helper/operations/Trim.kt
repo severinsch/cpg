@@ -25,7 +25,6 @@
  */
 package de.fraunhofer.aisec.cpg.helper.operations
 
-import de.fraunhofer.aisec.cpg.analysis.fsm.Edge
 import de.fraunhofer.aisec.cpg.analysis.fsm.NFA
 import de.fraunhofer.aisec.cpg.analysis.fsm.State
 import de.fraunhofer.aisec.cpg.helper.approximations.CharSet
