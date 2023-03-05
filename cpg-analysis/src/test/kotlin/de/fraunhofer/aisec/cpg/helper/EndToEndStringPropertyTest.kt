@@ -129,16 +129,24 @@ class EndToEndStringPropertyTest {
 
         val (automaton, automatonCreationDuration) =
             measureTimedValue { GrammarToNFA(grammar).makeFA() }
-        println("AUTOMATON:\n${automaton.toDotString().replace("\\Q", "").replace("\\E", "")}")
+        println("NFA:\n${automaton.toDotString().replace("\\Q", "").replace("\\E", "")}")
+        println(
+            "NFA size: ${automaton.states.size} states, ${automaton.states.flatMap { it.outgoingEdges }.size} transitions"
+        )
 
         val dfa = NFA(automaton.toDfa().states)
         println("DFA:\n${dfa.toDotString().replace("\\Q", "").replace("\\E", "")}")
+        println(
+            "DFA size: ${dfa.states.size} states, ${dfa.states.flatMap { it.outgoingEdges }.size} transitions"
+        )
 
         val (pattern, toRegexDuration) = measureTimedValue { automaton.toRegex() }
         println("REGEX PATTERN:\n${pattern}\n${prettyPrintPattern(pattern)}")
+        println("Pattern length:\n${pattern.length}")
 
         val dfaPattern = dfa.toRegex()
         println("DFA PATTERN:\n${dfaPattern}\n${prettyPrintPattern(dfaPattern)}")
+        println("DFA Pattern length:\n${dfaPattern.length}")
 
         val regex = Regex(pattern)
         assert(regex.matches("(0+1)"))
@@ -170,7 +178,11 @@ class EndToEndStringPropertyTest {
         q3.addEdge(Edge("\\Q)\\E", nextState = q1))
         val dfa = NFA(setOf(q0, q1, q2, q3))
         println("DFA:\n${dfa.toDotString()}")
+        println(
+            "DFA size: ${dfa.states.size} states, ${dfa.states.flatMap { it.outgoingEdges }.size} transitions"
+        )
         val dfaPattern = dfa.toRegex()
         println("DFA PATTERN:\n${dfaPattern}\n${prettyPrintPattern(dfaPattern)}")
+        println("DFA Pattern length:\n${dfaPattern.length}")
     }
 }

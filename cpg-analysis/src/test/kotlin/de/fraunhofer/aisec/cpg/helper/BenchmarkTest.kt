@@ -27,73 +27,17 @@ package de.fraunhofer.aisec.cpg.helper
 
 import de.fraunhofer.aisec.cpg.TestUtils
 import de.fraunhofer.aisec.cpg.TranslationManager
-import de.fraunhofer.aisec.cpg.analysis.fsm.NFA
 import de.fraunhofer.aisec.cpg.frontends.java.JavaLanguage
-import de.fraunhofer.aisec.cpg.graph.statements.expressions.Expression
-import de.fraunhofer.aisec.cpg.helper.approximations.CharSetApproximation
-import de.fraunhofer.aisec.cpg.helper.approximations.RegularApproximation
-import de.fraunhofer.aisec.cpg.helper.automaton.GrammarToNFA
 import de.fraunhofer.aisec.cpg.passes.EdgeCachePass
 import de.fraunhofer.aisec.cpg.passes.IdentifierPass
 import de.fraunhofer.aisec.cpg.passes.StringPropertyHotspots
 import de.fraunhofer.aisec.cpg.passes.StringPropertyPass
-import java.io.BufferedWriter
 import java.io.File
 import java.io.FileOutputStream
 import java.nio.file.Path
 import kotlin.io.path.deleteExisting
 import kotlin.io.path.listDirectoryEntries
-import kotlin.time.Duration
-import kotlin.time.ExperimentalTime
-import kotlin.time.measureTime
-import kotlin.time.measureTimedValue
 import org.junit.jupiter.api.*
-
-data class TestInput(
-    val name: String,
-    val files: List<File>,
-    val subdirectory: String = "",
-    val nodeName: String? = null,
-    val lineNumber: Int? = null,
-    val hotspotType: StringPropertyHotspots.HotspotType? = null,
-    val analyzeAllHotspots: Boolean = false,
-    val createDFA: Boolean = false,
-)
-
-data class TestResult(
-    val name: String,
-    val error: Boolean,
-    val result: TestData?,
-) {
-    fun toCsvRow(): String =
-        "\"${this.name}\",${this.error},${this.result?.grammarCreationDuration?.inWholeMicroseconds},${this.result?.charsetApproxDuration?.inWholeMicroseconds},${this.result?.regularApproxDuration?.inWholeMicroseconds},${this.result?.automatonCreationDuration?.inWholeMicroseconds},${this.result?.dfaCreationDuration?.inWholeMicroseconds},${this.result?.toRegexDuration?.inWholeMicroseconds},${this.result?.totalDuration?.inWholeMicroseconds},${this.result?.grammarSize?.first},${this.result?.grammarSize?.second},${this.result?.approximatedGrammarSize?.first},${this.result?.approximatedGrammarSize?.second},${this.result?.automatonSize?.first},${this.result?.automatonSize?.second},${this.result?.dfaSize?.first},${this.result?.dfaSize?.second},${this.result?.regexSize},\"${this.result?.regex}\"\n"
-
-    companion object {
-        const val csvHeader =
-            "Test name,Error,Grammar creation time [μs],Charset approximation time [μs],Regular approximation time [μs],Automaton creation time [μs],DFA creation time [μs],Regex creation time [μs],Total time [μs],Original grammar nonterminals,Original grammar productions,Approximated grammar nonterminals,Approximated grammar productions,Automaton nodes,Automaton edges,DFA nodes,DFA edges,Regex size,Regex\n"
-    }
-}
-
-data class TestData(
-    val grammarCreationDuration: Duration,
-    val grammarSize: Pair<Int, Int>, // (nonterminals, productions)
-    val charsetApproxDuration: Duration,
-    val regularApproxDuration: Duration,
-    val approximatedGrammarSize: Pair<Int, Int>, // (nonterminals, productions)
-    val automatonCreationDuration: Duration,
-    val automatonSize: Pair<Int, Int>, // (states, edges)
-    val dfaCreationDuration: Duration?, // (states, edges)
-    val dfaSize: Pair<Int, Int>?,
-    val toRegexDuration: Duration,
-    val regexSize: Int,
-    val totalDuration: Duration =
-        grammarCreationDuration +
-            charsetApproxDuration +
-            regularApproxDuration +
-            automatonCreationDuration +
-            toRegexDuration,
-    val regex: String,
-)
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class BenchmarkTest {
@@ -390,100 +334,5 @@ class BenchmarkTest {
                 .registerPass(EdgeCachePass())
                 .registerPass(StringPropertyPass())
         }
-    }
-
-    /**
-     * Performs all steps from node to regex, measures the duration of each step and collects it
-     * with the sizes of the results
-     * @param node the node to analyze
-     * @param createDFA whether to create a DFA from the NFA before converting it to a regex
-     */
-    @OptIn(ExperimentalTime::class)
-    fun analyzeNode(node: Expression, createDFA: Boolean = false): TestData {
-        // println("Analyzing node ${node.name} at ${node.location}")
-        val (grammar, grammarCreationDuration) = measureTimedValue { createGrammar(node) }
-
-        val originalGrammarSize =
-            grammar.getAllNonterminals().size to
-                grammar.getAllNonterminals().flatMap { it.productions }.size
-
-        val charsetApproxDuration = measureTime { CharSetApproximation(grammar).approximate() }
-        val regularApproxDuration = measureTime { RegularApproximation(grammar).approximate() }
-
-        val regularGrammarSize =
-            grammar.getAllNonterminals().size to
-                grammar.getAllNonterminals().flatMap { it.productions }.size
-
-        var (automaton, automatonCreationDuration) =
-            measureTimedValue { GrammarToNFA(grammar).makeFA() }
-
-        val automatonSize =
-            automaton.states.size to automaton.states.flatMap { it.outgoingEdges }.size
-
-        var dfaCreationDuration: Duration? = null
-        var dfaSize: Pair<Int, Int>? = null
-        if (createDFA) {
-            val (dfa, dur) = measureTimedValue { automaton.toDfa() }
-            dfaCreationDuration = dur
-            automaton = NFA(dfa.states)
-            dfaSize = dfa.states.size to dfa.states.flatMap { it.outgoingEdges }.size
-        }
-
-        val (pattern, toRegexDuration) = measureTimedValue { automaton.toRegex() }
-        return TestData(
-            grammarCreationDuration = grammarCreationDuration,
-            grammarSize = originalGrammarSize,
-            charsetApproxDuration = charsetApproxDuration,
-            regularApproxDuration = regularApproxDuration,
-            approximatedGrammarSize = regularGrammarSize,
-            automatonCreationDuration = automatonCreationDuration,
-            automatonSize = automatonSize,
-            dfaCreationDuration = dfaCreationDuration,
-            dfaSize = dfaSize,
-            toRegexDuration = toRegexDuration,
-            regexSize = pattern.length,
-            regex = pattern,
-        )
-    }
-
-    private val ansiReset = "\u001B[0m"
-    private val ansiRed = "\u001B[31m"
-    private val ansiGreen = "\u001B[32m"
-
-    private fun formatDuration(duration: Duration?, total: Duration) =
-        duration?.let { "$duration (${String.format("%.2f", duration / total * 100)}% of total)" }
-            ?: "N/A"
-
-    private fun printResult(result: TestResult) {
-        if (result.error || result.result == null) {
-            println("+++++++++++++++++++++++++++++")
-            println("${ansiRed}Error in test ${result.name}$ansiReset")
-            return
-        }
-        val data = result.result
-        println(
-            """
-            +++++++++++++++++++++++++++++
-            ${ansiGreen}Test "${result.name}"$ansiReset:
-            Grammar creation time:     ${formatDuration(data.grammarCreationDuration, data.totalDuration)}
-            Grammar size:              ${data.grammarSize.first} nonterminals, ${data.grammarSize.second} productions
-            Charset approximation:     ${formatDuration(data.charsetApproxDuration, data.totalDuration)}
-            Regular approximation:     ${formatDuration(data.regularApproxDuration, data.totalDuration)}
-            Approximated grammar size: ${data.approximatedGrammarSize.first} nonterminals, ${data.approximatedGrammarSize.second} productions
-            Automaton creation:        ${formatDuration(data.automatonCreationDuration, data.totalDuration)}
-            Automaton size:            ${data.automatonSize.first} states, ${data.automatonSize.second} edges
-            DFA creation:              ${formatDuration(data.dfaCreationDuration, data.totalDuration)}
-            DFA size:                  ${data.dfaSize?.first ?: "N/A"} states, ${data.dfaSize?.second ?: "N/A"} edges
-            Regex creation:            ${formatDuration(data.toRegexDuration, data.totalDuration)}
-            Regex size:                ${data.regexSize}
-            Total time:                ${data.totalDuration}
-            Regex:                     ${prettyPrintPattern(data.regex)}
-            """.trimIndent()
-        )
-    }
-
-    private fun BufferedWriter.writeCsvRow(result: TestResult) {
-        this.write(result.toCsvRow())
-        this.flush()
     }
 }
