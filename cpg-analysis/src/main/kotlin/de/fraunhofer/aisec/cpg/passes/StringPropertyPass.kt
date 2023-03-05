@@ -27,6 +27,7 @@ package de.fraunhofer.aisec.cpg.passes
 
 import de.fraunhofer.aisec.cpg.TranslationResult
 import de.fraunhofer.aisec.cpg.graph.Node
+import de.fraunhofer.aisec.cpg.graph.declarations.FunctionDeclaration
 import de.fraunhofer.aisec.cpg.graph.statements.ReturnStatement
 import de.fraunhofer.aisec.cpg.graph.statements.expressions.*
 import de.fraunhofer.aisec.cpg.helpers.SubgraphWalker
@@ -78,15 +79,23 @@ class StringPropertyPass : Pass() {
 
     private fun collectHotspots(node: Node?) {
         when (node) {
-            is ReturnStatement ->
-                if (
-                    node.returnValue != null && node.returnValue.type.typeName == "java.lang.String"
-                ) {
+            is ReturnStatement -> {
+                val returnTypes =
+                    (node.nextDFG.firstOrNull { it is FunctionDeclaration } as FunctionDeclaration?)
+                        ?.returnTypes
+                        ?: emptyList()
+                val t = node.returnValue?.type
+                val anyIsString =
+                    returnTypes
+                        .let { if (t != null) it + t else it }
+                        .any { it.typeName == "java.lang.String" }
+                if (node.returnValue != null && anyIsString) {
                     StringPropertyHotspots.addHotspot(
                         node.returnValue,
                         StringPropertyHotspots.HotspotType.RETURN
                     )
                 }
+            }
             is CallExpression -> {
                 if (node.fqn?.contains(".println") == true && node.arguments.isNotEmpty()) {
                     StringPropertyHotspots.addHotspot(
