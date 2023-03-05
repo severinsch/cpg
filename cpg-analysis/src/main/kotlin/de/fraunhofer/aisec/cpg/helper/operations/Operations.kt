@@ -41,6 +41,11 @@ fun createOperationProduction(node: CallExpression, cfg: Grammar): Production {
     val baseNT = cfg.getOrCreateNonterminal(node.base?.id)
 
     val name = node.name.lowercase()
+
+    if (node.isNumber()) {
+       return getNumberProduction(node)
+    }
+
     if (name in setOf("replace", "trim", "tolowercase", "touppercase")) {
         val operation =
             when (name) {

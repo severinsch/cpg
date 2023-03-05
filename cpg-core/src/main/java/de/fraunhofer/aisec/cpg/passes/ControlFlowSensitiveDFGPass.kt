@@ -34,6 +34,7 @@ import de.fraunhofer.aisec.cpg.graph.edge.Properties
 import de.fraunhofer.aisec.cpg.graph.statements.*
 import de.fraunhofer.aisec.cpg.graph.statements.expressions.BinaryOperator
 import de.fraunhofer.aisec.cpg.graph.statements.expressions.DeclaredReferenceExpression
+import de.fraunhofer.aisec.cpg.graph.statements.expressions.MemberCallExpression
 import de.fraunhofer.aisec.cpg.graph.statements.expressions.UnaryOperator
 import de.fraunhofer.aisec.cpg.helpers.SubgraphWalker.IterativeGraphWalker
 import de.fraunhofer.aisec.cpg.passes.order.DependsOn
@@ -193,6 +194,10 @@ open class ControlFlowSensitiveDFGPass : Pass() {
                 // other steps
                 previousWrites[currentNode.refersTo]?.lastOrNull()?.let {
                     currentNode.addPrevDFG(it)
+                }
+            } else if (currentNode is MemberCallExpression) {
+                (currentNode.base as? DeclaredReferenceExpression)?.refersTo?.let {
+                    previousWrites.computeIfAbsent(it, ::mutableListOf).add(currentNode)
                 }
             }
 
