@@ -66,14 +66,12 @@ sealed class FSM(states: Set<State>) {
     fun addState(
         isStart: Boolean = false,
         isAcceptingState: Boolean = false,
-        associatedNTId: Long? = null
     ): State {
         val newState =
             State(
                 name = nextStateName,
                 isStart = isStart,
                 isAcceptingState = isAcceptingState,
-                associatedNonterminalID = associatedNTId
             )
         addState(newState)
         return newState

@@ -149,11 +149,7 @@ class GrammarToNFA(val grammar: Grammar) {
         ) { // α must consist of a single nonterminal
 
             // for each B in Ni do let qB = fresh_state end; in map to access for each NT
-            val ntStates =
-                comp.nonterminals.associateWith { nt ->
-                    automaton.states.firstOrNull { it.associatedNonterminalID == nt.id }
-                        ?: automaton.addState(associatedNTId = nt.id)
-                }
+            val ntStates = comp.nonterminals.associateWith { automaton.addState() }
 
             val returnedTaints: MutableList<OperationTaint> = mutableListOf()
             for (C in comp.nonterminals) {
