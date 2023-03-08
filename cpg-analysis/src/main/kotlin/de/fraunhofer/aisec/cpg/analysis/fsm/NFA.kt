@@ -167,8 +167,8 @@ class NFA(states: Set<State> = setOf()) : FSM(states) {
     }
 
     private fun toOptional(pattern: String): String {
-        return if (pattern.isEmpty() || pattern.length == 1) {
-            pattern
+        return if (pattern.length == 1 || pattern.first() == '(' && pattern.last() == ')') {
+            "$pattern?"
         } else {
             "($pattern)?"
         }
@@ -187,22 +187,28 @@ class NFA(states: Set<State> = setOf()) : FSM(states) {
         fun List<Edge>.combineToRegex(): String {
             var result = ""
             val singleChars = mutableListOf<String>()
+            var addBrackets = false
             for (edge in this) {
-                if (edge.op.length == 1) {
+                val unescaped = edge.op.replace("\\Q", "").replace("\\E", "")
+                if (unescaped.length == 1) {
                     // Only one character
-                    singleChars.add(edge.op)
+                    singleChars.add(unescaped)
                 } else if (edge.op.isNotEmpty()) {
+                    addBrackets = true
                     result = if (result.isEmpty()) edge.op else "$result|${edge.op}"
                 }
             }
-            if (singleChars.size > 1) {
-                // TODO this check doesn't account for escaped single chars like \Q+\E
-                result += "[" + singleChars.joinToString("") + "]"
-            } else {
-                result += singleChars.joinToString("")
-            }
+            result +=
+                if (singleChars.size > 1) {
+                    (if (result.isEmpty()) "" else "|") + "[" + singleChars.joinToString("") + "]"
+                } else if (singleChars.size == 1) {
+                    (if (result.isEmpty()) "" else "|") + Regex.escape(singleChars.first())
+                } else {
+                    ""
+                }
 
-            return if ("|" in result) "($result)" else result
+            // potentially unnecessary brackets, e.g. for result = (a|b), ((a|b)) is returned
+            return if (addBrackets) "($result)" else result
         }
         fun getSelfLoopOfState(toReplace: State): String {
             // First, we get the loop(s) to the same node.
@@ -233,7 +239,8 @@ class NFA(states: Set<State> = setOf()) : FSM(states) {
                 var regex = v.filter { it.op != EPSILON }.combineToRegex()
 
                 // We put the ? around this regex because we can bypass it with the EPSILON edge.
-                if (regex.isNotEmpty() && v.any { it.op == EPSILON }) regex = toOptional(regex)
+                if (regex.isNotEmpty() && regex != EPSILON && v.any { it.op == EPSILON })
+                    regex = toOptional(regex)
 
                 result[k] = regex
             }
@@ -255,7 +262,11 @@ class NFA(states: Set<State> = setOf()) : FSM(states) {
                 var regexToReplace = outgoingEdges.filter { it.op != EPSILON }.combineToRegex()
 
                 // If there's an EPSILON edge from state to toReplace, everything is optional
-                if (outgoingEdges.any { it.op == EPSILON && regexToReplace.isNotEmpty() })
+                if (
+                    outgoingEdges.any {
+                        it.op == EPSILON && regexToReplace.isNotEmpty() && regexToReplace != EPSILON
+                    }
+                )
                     regexToReplace = toOptional(regexToReplace)
 
                 // We add edges from this state to each state reachable from the one to remove.
@@ -263,7 +274,8 @@ class NFA(states: Set<State> = setOf()) : FSM(states) {
                 // next hop
                 if (outgoingEdges.isNotEmpty()) {
                     for ((key, value) in outgoingMap.entries) {
-                        newEdges.add(Edge(regexToReplace + value, null, key))
+                        val op = (regexToReplace + value).ifEmpty { EPSILON }
+                        newEdges.add(Edge(op, null, key))
                     }
                 }
 
@@ -283,13 +295,17 @@ class NFA(states: Set<State> = setOf()) : FSM(states) {
                 stateSet
                     .filter { it != newStartState && it != newEndState }
                     .minByOrNull { heuristic(it) }
-                    ?: return newStartState.outgoingEdges.joinToString("|") { "(${it.op})" }
+                    ?: return newStartState.outgoingEdges.let { e ->
+                        e.singleOrNull()?.op ?: e.joinToString("|") { "(${it.op})" }
+                    }
 
             stateSet.remove(toProcess)
             replaceStateWithRegex(toProcess, stateSet)
         }
 
-        return newStartState.outgoingEdges.joinToString("|") { "(${it.op})" }
+        return newStartState.outgoingEdges.let { e ->
+            e.singleOrNull()?.op ?: e.joinToString("|") { "(${it.op})" }
+        }
     }
 
     /**
@@ -305,14 +321,14 @@ class NFA(states: Set<State> = setOf()) : FSM(states) {
             // We generate a new start state to make the termination a bit easier.
             val oldStart = this.states.first { it.isStart }
             oldStart.isStart = false
-            val newStartState = this.addState(true, false)
+            val newStartState = this.addState(isStart = true, isAcceptingState = false)
             newStartState.addEdge(Edge(EPSILON, null, oldStart))
             returnedStart = newStartState
         }
 
         if (this.needsNewEnd()) {
             // We also generate a new end state
-            val newEndState = this.addState(false, true)
+            val newEndState = this.addState(isStart = false, isAcceptingState = true)
             this.states
                 .filter { it.isAcceptingState && it != newEndState }
                 .forEach {
