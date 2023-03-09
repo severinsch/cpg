@@ -28,12 +28,14 @@ package de.fraunhofer.aisec.cpg.helper
 import de.fraunhofer.aisec.cpg.helper.approximations.CharSetApproximation
 import de.fraunhofer.aisec.cpg.helper.approximations.RegularApproximation
 import de.fraunhofer.aisec.cpg.helper.automaton.GrammarToNFA
+import kotlin.test.assertFalse
 import org.junit.jupiter.api.Test
 
 class OperationTest {
 
     @Test
     fun exampleOperationProduction() {
+        // used for example in thesis
         val grammarDefinition =
             """
             A -> E
@@ -154,7 +156,7 @@ class OperationTest {
 
     @Test
     fun exampleReverse() {
-
+        // example used in paper
         val grammarDefinition =
             """
             S -> A
@@ -180,5 +182,19 @@ class OperationTest {
 
         val pattern = nfa.toRegex()
         println("Pattern: ${prettyPrintPattern(pattern)}")
+
+        val regex = Regex(pattern)
+        val regexNoOps = Regex(nfaNoOps.toRegex())
+        // side without reverse side unaffected
+        assert(regex.matches("ac"))
+        assert(regex.matches("aac"))
+        assert(regexNoOps.matches("ac"))
+        assert(regexNoOps.matches("aac"))
+
+        assert(regex.matches("c"))
+        assert(regex.matches("cb"))
+        assert(regex.matches("cbbb"))
+        assertFalse(regexNoOps.matches("cbb"))
+        assertFalse(regex.matches("bbc"))
     }
 }

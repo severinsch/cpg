@@ -65,11 +65,13 @@ class Reverse : Operation(1) {
         val oldEdges = subAutomatonStates.flatMap { s -> s.outgoingEdges.map { s to it } }
         subAutomatonStates.forEach { it.outgoingEdges = emptySet() }
         for ((from, edge) in oldEdges) {
-            val newEdge =
-                edge.copy(
-                    nextState = from,
-                    op = if (edge.op.contains("\\Q")) edge.op.reversed() else edge.op
-                )
+            val newOp =
+                if (edge.op.contains("\\Q")) {
+                    edge.op.removePrefix("\\Q").removeSuffix("\\E").reversed().let {
+                        Regex.escape(it)
+                    }
+                } else edge.op
+            val newEdge = edge.copy(nextState = from, op = newOp)
             edge.nextState.addEdge(newEdge)
         }
 

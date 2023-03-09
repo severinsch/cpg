@@ -43,7 +43,7 @@ fun createOperationProduction(node: CallExpression, cfg: Grammar): Production {
     val name = node.name.lowercase()
 
     if (node.isNumber()) {
-       return getNumberProduction(node)
+        return getNumberProduction(node)
     }
 
     if (name in setOf("replace", "trim", "tolowercase", "touppercase")) {

@@ -25,20 +25,14 @@
  */
 package de.fraunhofer.aisec.cpg.helper
 
-import de.fraunhofer.aisec.cpg.TestUtils
-import de.fraunhofer.aisec.cpg.TranslationManager
-import de.fraunhofer.aisec.cpg.frontends.java.JavaLanguage
-import de.fraunhofer.aisec.cpg.passes.EdgeCachePass
-import de.fraunhofer.aisec.cpg.passes.IdentifierPass
 import de.fraunhofer.aisec.cpg.passes.StringPropertyHotspots
-import de.fraunhofer.aisec.cpg.passes.StringPropertyPass
-import java.io.File
 import java.io.FileOutputStream
 import java.nio.file.Path
 import kotlin.io.path.deleteExisting
 import kotlin.io.path.listDirectoryEntries
 import org.junit.jupiter.api.*
 
+/** This test class is used to produce the data for the benchmarks in the thesis. */
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class BenchmarkTest {
 
@@ -323,16 +317,5 @@ class BenchmarkTest {
             }
         }
         StringPropertyHotspots.clear()
-    }
-
-    /** Builds a CPG for the given files with path as the toplevel directory */
-    private fun buildCPG(files: List<File>, path: Path) {
-        TranslationManager.builder().build().analyze()
-        TestUtils.analyzeAndGetFirstTU(files, path, true) {
-            it.registerLanguage<JavaLanguage>()
-                .registerPass(IdentifierPass())
-                .registerPass(EdgeCachePass())
-                .registerPass(StringPropertyPass())
-        }
     }
 }

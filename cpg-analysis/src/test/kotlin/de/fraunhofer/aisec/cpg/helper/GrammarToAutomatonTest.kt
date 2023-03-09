@@ -25,10 +25,12 @@
  */
 package de.fraunhofer.aisec.cpg.helper
 
+import de.fraunhofer.aisec.cpg.analysis.fsm.Edge
 import de.fraunhofer.aisec.cpg.analysis.fsm.NFA
 import de.fraunhofer.aisec.cpg.helper.approximations.CharSetApproximation
 import de.fraunhofer.aisec.cpg.helper.approximations.RegularApproximation
 import de.fraunhofer.aisec.cpg.helper.automaton.GrammarToNFA
+import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import org.junit.jupiter.api.Test
 
@@ -45,49 +47,15 @@ class GrammarToAutomatonTest {
         """.trimIndent()
 
         val g = grammarStringToGrammar(grammarDefinition)
-
-        println("Initial Grammar:\n${g.printGrammar()}")
-
         CharSetApproximation(g).approximate()
-        println("After Charset Approximation:\n${g.printGrammar()}") // equal to initial
-
         RegularApproximation(g, setOf(0)).approximate()
-        println("After Regular Approximation:\n${g.printGrammar()}")
-        // Grammar after RegularApproximation:
-        // S -> T
-        // S -> R S'
-        // T -> S
-        // P -> "+"
-        // T' -> S
-        // S' -> ""
-        // S' -> P T'
-        // S' -> S'
-        // R -> "a"
 
         val automaton = GrammarToNFA(g).makeFA()
-        println("Initial automaton: ${ automaton.toDotString() }")
-
-        // Two possibilities:
-        // use NFA directly: produces good results for this example only if delgado heuristic is
-        // used
-        // convert to DFA: creates optimal automaton for this example and produces good result even
-        // without heuristic
-        // BUT: NFA -> DFA potential exponential blowup
-
         val dfa = automaton.toDfa()
         val dfaAsNfa = NFA(dfa.states) // same automaton, just to make typechecking work
-        println("DFA: ${ dfaAsNfa.toDotString() }")
 
         val dfaRegexPattern = dfaAsNfa.toRegex()
-        println("Regex from DFA: ${prettyPrintPattern(dfaRegexPattern)}")
-
         val nfaRegexPattern = automaton.toRegex()
-        println("Regex from NFA: ${prettyPrintPattern(nfaRegexPattern)}")
-
-        val nfaRegexPatternWithoutHeuristic = automaton.toRegex { _ -> 0 }
-        println(
-            "Regex from NFA without heuristic: ${prettyPrintPattern(nfaRegexPatternWithoutHeuristic)}"
-        )
 
         val nfaRegex = Regex(nfaRegexPattern)
         assert(nfaRegex.matches("a+a+a+a"))
@@ -95,16 +63,18 @@ class GrammarToAutomatonTest {
         assertFalse(nfaRegex.matches(""))
         assertFalse(nfaRegex.matches("a+a+"))
         assertFalse(nfaRegex.matches("+a+a"))
+
+        val dfaRegex = Regex(dfaRegexPattern)
+        assert(dfaRegex.matches("a+a+a+a"))
+        assert(dfaRegex.matches("a"))
+        assertFalse(dfaRegex.matches(""))
+        assertFalse(dfaRegex.matches("a+a+"))
+        assertFalse(dfaRegex.matches("+a+a"))
     }
 
     @Test
     fun example3() {
         // aus nederhof paper
-        // S -> Aa
-        // A -> SB
-        // A -> Bb
-        // B -> Bc
-        // B -> d
         val grammarDefinition =
             """
             S -> Aa
@@ -116,23 +86,25 @@ class GrammarToAutomatonTest {
 
         val g = grammarStringToGrammar(grammarDefinition)
 
-        println("Initial Grammar:\n${g.printGrammar()}")
-
         RegularApproximation(g, setOf(0)).approximate()
-        println("Approximated grammar:\n${g.printGrammar()}")
-
         val automaton = GrammarToNFA(g).makeFA()
-        println("Automaton:\n${automaton.toDotString()}")
+        println(automaton.toDotString())
+        println(automaton.states.size)
+        assert(automaton.states.size == 7)
+        assert(automaton.states.flatMap { it.outgoingEdges }.size == 9)
 
-        val dfa = automaton.toDfa()
-        val dfaAsNfa = NFA(dfa.states) // same automaton, just to make typechecking work
-        println("DFA: ${ dfaAsNfa.toDotString() }")
-
-        val dfaRegexPattern = dfaAsNfa.toRegex()
-        println("Regex from DFA: ${prettyPrintPattern(dfaRegexPattern)}")
-
+        // use regex to check for correctness of automaton
         val nfaRegexPattern = automaton.toRegex()
-        println("Regex from NFA: ${prettyPrintPattern(nfaRegexPattern)}")
+        val nfaRegex = Regex(nfaRegexPattern)
+        assert(nfaRegex.matches("dba"))
+        assert(nfaRegex.matches("dccba"))
+        assert(nfaRegex.matches("dcbadccca"))
+        assert(nfaRegex.matches("dcbada"))
+        assertFalse(nfaRegex.matches("a"))
+        assertFalse(nfaRegex.matches("dcb"))
+        assertFalse(nfaRegex.matches("dbad"))
+        assertFalse(nfaRegex.matches("dbadc"))
+        assertFalse(nfaRegex.matches("dbadcad"))
     }
 
     @Test
@@ -149,13 +121,21 @@ class GrammarToAutomatonTest {
         """
         val g = grammarStringToGrammar(grammarDefinition)
 
-        println("Initial Grammar:\n${g.printGrammar()}")
-
         val automaton = GrammarToNFA(g).makeFA()
         println("Automaton:\n${automaton.toDotString()}")
 
-        val nfaRegexPattern = automaton.toRegex()
-        println("Regex from NFA: ${prettyPrintPattern(nfaRegexPattern)}")
+        val expected = NFA()
+        val s0 = expected.addState(isStart = true)
+        val s1 = expected.addState(isAcceptingState = true)
+        val s2 = expected.addState()
+        val s3 = expected.addState()
+
+        s0.addEdge(Edge("ε", null, s3))
+        s3.addEdge(Edge("ε", null, s2))
+        s2.addEdge(Edge(Regex.escape("b"), null, s3))
+        s3.addEdge(Edge(Regex.escape("a"), null, s1))
+
+        assert(expected == automaton)
     }
 
     @Test
@@ -172,13 +152,23 @@ class GrammarToAutomatonTest {
         """
         val g = grammarStringToGrammar(grammarDefinition)
 
-        println("Initial Grammar:\n${g.printGrammar()}")
-
         val automaton = GrammarToNFA(g).makeFA()
         println("Automaton:\n${automaton.toDotString()}")
 
-        val nfaRegexPattern = automaton.toRegex()
-        println("Regex from NFA: ${prettyPrintPattern(nfaRegexPattern)}")
+        val expected = NFA()
+        val s0 = expected.addState(isStart = true)
+        val s1 = expected.addState(isAcceptingState = true)
+        val s2 = expected.addState()
+        val s3 = expected.addState()
+
+        s0.addEdge(Edge(Regex.escape("a"), null, s3))
+        s3.addEdge(Edge(Regex.escape("b"), null, s2))
+        s2.addEdge(Edge("ε", null, s3))
+        s3.addEdge(Edge("ε", null, s1))
+
+        println("Expected:\n${expected.toDotString()}")
+
+        assertEquals(expected, automaton)
     }
 
     @Test
@@ -193,13 +183,16 @@ class GrammarToAutomatonTest {
         C -> c
         """
         val g = grammarStringToGrammar(grammarDefinition)
-
-        println("Initial Grammar:\n${g.printGrammar()}")
-
         val automaton = GrammarToNFA(g).makeFA()
         println("Automaton:\n${automaton.toDotString()}")
 
-        val nfaRegexPattern = automaton.toRegex()
-        println("Regex from NFA: ${prettyPrintPattern(nfaRegexPattern)}")
+        val expected = NFA()
+        val s0 = expected.addState(isStart = true)
+        val s1 = expected.addState(isAcceptingState = true)
+
+        s0.addEdge(Edge(Regex.escape("b"), null, s1))
+        s0.addEdge(Edge(Regex.escape("c"), null, s1))
+
+        assertEquals(expected, automaton)
     }
 }

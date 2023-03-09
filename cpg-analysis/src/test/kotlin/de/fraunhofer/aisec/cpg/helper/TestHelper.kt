@@ -25,15 +25,22 @@
  */
 package de.fraunhofer.aisec.cpg.helper
 
+import de.fraunhofer.aisec.cpg.TestUtils
+import de.fraunhofer.aisec.cpg.TranslationManager
 import de.fraunhofer.aisec.cpg.analysis.fsm.NFA
+import de.fraunhofer.aisec.cpg.frontends.java.JavaLanguage
 import de.fraunhofer.aisec.cpg.graph.statements.expressions.Expression
 import de.fraunhofer.aisec.cpg.helper.approximations.CharSetApproximation
 import de.fraunhofer.aisec.cpg.helper.approximations.RegularApproximation
 import de.fraunhofer.aisec.cpg.helper.automaton.GrammarToNFA
 import de.fraunhofer.aisec.cpg.helper.operations.*
+import de.fraunhofer.aisec.cpg.passes.EdgeCachePass
+import de.fraunhofer.aisec.cpg.passes.IdentifierPass
 import de.fraunhofer.aisec.cpg.passes.StringPropertyHotspots
+import de.fraunhofer.aisec.cpg.passes.StringPropertyPass
 import java.io.BufferedWriter
 import java.io.File
+import java.nio.file.Path
 import kotlin.time.Duration
 import kotlin.time.ExperimentalTime
 import kotlin.time.measureTime
@@ -87,6 +94,17 @@ data class TestData(
 
 fun prettyPrintPattern(pattern: String): String {
     return pattern.replace("\\Q", "").replace("\\E", "")
+}
+
+/** Builds a CPG for the given files with path as the toplevel directory */
+fun buildCPG(files: List<File>, path: Path) {
+    TranslationManager.builder().build().analyze()
+    TestUtils.analyzeAndGetFirstTU(files, path, true) {
+        it.registerLanguage<JavaLanguage>()
+            .registerPass(IdentifierPass())
+            .registerPass(EdgeCachePass())
+            .registerPass(StringPropertyPass())
+    }
 }
 
 /**
@@ -262,7 +280,6 @@ fun grammarStringToGrammar(grammarString: String): Grammar {
 
             val productions = parts[1].split("|")
             productions.forEach { prod ->
-                println("Parsing Production $prod")
                 if (prod.contains("(") && prod.contains(")")) {
                     handleOperationProduction(prod, left)
                 } else {
